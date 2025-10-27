@@ -1,2 +1,6 @@
-init_build_enviroment/
+.init_build_env/
+.DS_Store
+*.iml
+.idea
 .env
+__pycache__
