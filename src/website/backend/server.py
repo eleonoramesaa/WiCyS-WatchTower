@@ -8,7 +8,7 @@ from urllib.parse import quote_plus, urlencode
 from authlib.integrations.flask_client import OAuth
 from dotenv import find_dotenv, load_dotenv
 from flask import Flask, redirect, render_template, session, url_for
-
+from flask import jsonify
 
 ENV_FILE = find_dotenv()
 if ENV_FILE:
@@ -55,11 +55,13 @@ def logout():
             quote_via=quote_plus,
         )
     )
-    
+    // Flask tried to previously render an inexisting home.html. Replaced it w a clear JSON response
 @app.route("/")
 def home():
-    return render_template("home.html", session=session.get('user'), pretty=json.dumps(session.get('user'), indent=4))
-
-
+    user = session.get('user')
+    return jsonify({
+        "message": "Backend running successfully 🎉",
+        "user": user
+    })
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=env.get("PORT", 3000))
+    app.run(host="0.0.0.0", port=env.get("PORT", 3001))
