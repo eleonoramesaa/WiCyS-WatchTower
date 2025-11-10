@@ -3,23 +3,33 @@
 import getpass
 import oracledb
 
-# Enter Oracle username
-username = input("Enter Oracle username: ")
+try:
+    # Enter Oracle username
+    username = input("Enter Oracle username: ")
 
-# Connect to Oracle Database
-pw = getpass.getpass("Enter password: ")
+    # Connect to Oracle Database
+    pw = getpass.getpass("Enter password: ")
 
-# Enter wallet password if applicable (otherwise leave as empty string)
-wall_pass = getpass.getpass("Enter wallet password (if applicable, else leave blank): ")
+    # Enter wallet password if applicable (otherwise leave as empty string)
+    wall_pass = getpass.getpass("Enter wallet password (if applicable, else leave blank): ")
 
-connection = oracledb.connect(
-    user=username,
-    password=pw,
-    dsn="watchtowerdev_low", # change if your DSN differs (check tnsnames.ora) or use connection string directly
-    config_dir="/Users/anelenaruiz/Downloads/Wallet_WatchTowerDev", # change if your wallet location differs
-    wallet_location="/Users/anelenaruiz/Downloads/Wallet_WatchTowerDev",
-    wallet_password=wall_pass
-)
+    connection = oracledb.connect(
+        user=username,
+        password=pw,
+        dsn="watchtowerdev_low", # change if your DSN differs (check tnsnames.ora) or use connection string directly
+        config_dir="./Wallet_WatchTowerDev", # change if your wallet location differs (should be unnecessary if file is in same dir)
+        wallet_location="./Wallet_WatchTowerDev",
+        wallet_password=wall_pass
+    )
+except oracledb.DatabaseError as e:
+    error, = e.args
+    print("There was a problem connecting to the database:")
+    print("Code:", error.code)
+    print("Message:", error.message)
+    exit(1)
+except Exception as ex:
+    print("An unexpected error occurred:", ex)
+    exit(1)
 
 print("Successfully connected to Oracle Database\n")
 if username.lower() == "admin":
