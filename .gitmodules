@@ -1,0 +1,6 @@
+[submodule "IOTDeviceScanner/iot-data-simulator"]
+	path = IOTDeviceScanner/iot-data-simulator
+	url = https://github.com/IBA-Group-IT/IoT-data-simulator.git
+[submodule "IOTDeviceScanner/IoT-simulator"]
+	path = IOTDeviceScanner/IoT-simulator
+	url = https://github.com/leedskiy/IoT-simulator.git
