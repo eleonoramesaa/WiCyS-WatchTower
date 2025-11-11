@@ -32,7 +32,7 @@ except Exception as ex:
     exit(1)
 
 print("Successfully connected to Oracle Database\n")
-if username.lower() == "admin":
+if username.lower() == "admin": # actually should be main dev user
     # Create Tables
     with connection.cursor() as cursor:
         # Drop existing tables (in reverse dependency order)
