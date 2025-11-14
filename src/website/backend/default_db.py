@@ -1,4 +1,4 @@
-# DO NOT RUN THIS AS PRIMARY DEV ONCE THE DATABASE IS IN USE, AS IT WILL DELETE ALL DATA!
+# DO NOT RUN FILE AS PRIMARY DEV ONCE THE DATABASE IS IN USE, AS IT WILL DELETE ALL DATA!
 # THIS FILE IS ONLY FOR INITIAL SETUP OF THE DATABASE SCHEMA.
 import getpass
 import oracledb
@@ -32,7 +32,8 @@ except Exception as ex:
     exit(1)
 
 print("Successfully connected to Oracle Database\n")
-if username.lower() == "admin": # actually should be main dev user
+if connection and username.lower() == "dev1": # Only allow schema setup if connected as 'dev1'
+    print("Setting up database schema...")
     # Create Tables
     with connection.cursor() as cursor:
         # Drop existing tables (in reverse dependency order)
@@ -114,12 +115,14 @@ if username.lower() == "admin": # actually should be main dev user
     connection.commit()
     connection.close()
 
-    print("All tables created successfully with cascade deletes and connection closed.")
+    print("All tables created successfully with cascade deletes.")
+    print("Connection closed.\n")
 
 else:
-    print("You must connect as 'admin' to set up the database schema.")
+    print("You must connect as 'dev1' to set up the database schema.")
     print("You are connected as:", username)
     print("Exiting without making any changes.\n")
 
-connection.close()
-print("Connection closed.")
+    connection.close()
+    print("Connection closed.")
+
