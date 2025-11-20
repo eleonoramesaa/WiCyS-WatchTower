@@ -5,3 +5,10 @@ node_modules/
 .idea
 .env
 __pycache__
+
+# Ignore Oracle wallet files
+Wallet_WatchTowerDev/
+*.pem
+*.sso
+*.p12
+*.ora
