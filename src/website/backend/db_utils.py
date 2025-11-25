@@ -71,9 +71,7 @@ def create_devices_table(cursor):
             id              NUMBER GENERATED ALWAYS AS IDENTITY,
             name            VARCHAR2(255) NOT NULL,
             os              VARCHAR2(255),
-            manufacturer    VARCHAR2(255),
             mac_address     VARCHAR2(255) NOT NULL,
-            port            NUMBER,
             user_id         NUMBER NOT NULL,
             CONSTRAINT pk_devices PRIMARY KEY (id),
             CONSTRAINT uq_devices_mac UNIQUE (mac_address),
@@ -91,8 +89,6 @@ def create_history_table(cursor):
             device_id           NUMBER,
             datetime            TIMESTAMP,
             outgoing_ip         VARCHAR2(255),
-            incoming_ip         VARCHAR2(255),
-            network_protocol    VARCHAR2(255),
             connection_status   VARCHAR2(255),
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
             CONSTRAINT fk_history_devices FOREIGN KEY (device_id)

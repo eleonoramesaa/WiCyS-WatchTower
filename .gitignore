@@ -1,11 +1,13 @@
 .init_build_env/
+init_build_env/
 node_modules/
 .DS_Store
 *.iml
 .idea
 .env
 __pycache__
-
+.venv/
+venv/
 # Ignore Oracle wallet files
 Wallet_WatchTowerDev/
 *.pem
