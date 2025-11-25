@@ -21,6 +21,7 @@ def main():
         setup_schema(connection)
 
         # Commit with safe handling
+        
         try:
             connection.commit()
             print("\nAll tables created successfully.\n")

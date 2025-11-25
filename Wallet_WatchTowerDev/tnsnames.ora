@@ -1,0 +1,12 @@
+watchtowerdev_high = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name=g25f6b3c4e065a3_watchtowerdev_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+watchtowerdev_low = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name=g25f6b3c4e065a3_watchtowerdev_low.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+watchtowerdev_medium = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name=g25f6b3c4e065a3_watchtowerdev_medium.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+watchtowerdev_tp = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name=g25f6b3c4e065a3_watchtowerdev_tp.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+watchtowerdev_tpurgent = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name=g25f6b3c4e065a3_watchtowerdev_tpurgent.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+
+

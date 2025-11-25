@@ -7,5 +7,7 @@
 
   Run `npm i` to install the dependencies.
 
+  Run `npm install -D @vitejs/plugin-react-swc` to install the required React SWC plugin for Vite.
+
   Run `npm run dev` to start the development server.
   
