@@ -2,6 +2,8 @@ import time
 import json
 import random
 import paho.mqtt.client as mqtt
+from db_utils import insert_telemetry
+from db_utils import connect_to_db
 
 # --- CONFIGURATION ---
 BROKER_ADDRESS = "127.0.0.1"
