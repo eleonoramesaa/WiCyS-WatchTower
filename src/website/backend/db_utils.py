@@ -14,9 +14,9 @@ def connect_to_db(username, password, wallet_password):
         conn = oracledb.connect(
             user=username,
             password=password,
-            dsn="watchtowerdev_low", # change if your DSN differs (check tnsnames.ora) or use connection string 
-            config_dir="./Wallet_WatchTowerDev", # change if your wallet location differs (should be unnecessary if file is in same dir/project folder)
-            wallet_location="./Wallet_WatchTowerDev", # follow the above dir comment
+            dsn="watchtowerdev_low",
+            config_dir="./Wallet_WatchTowerDev",
+            wallet_location="./Wallet_WatchTowerDev",
             wallet_password=wallet_password
         )
         print("Successfully connected to Oracle Database\n")
@@ -33,7 +33,9 @@ def connect_to_db(username, password, wallet_password):
         print("Unexpected error:", ex)
         exit(1)
 
-# SCHEMA OPERATIONS
+
+# SCHEMA CREATION
+
 def drop_existing_tables(cursor):
     """Drops tables safely in the correct dependency order."""
     tables = ["Blacklist", "History", "Devices", "Users"]
@@ -91,10 +93,10 @@ def create_history_table(cursor):
             outgoing_ip         VARCHAR2(255),
             connection_status   VARCHAR2(255),
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
+            CONSTRAINT chk_history_status CHECK (connection_status IN ('Connected', 'Disconnected')),
             CONSTRAINT fk_history_devices FOREIGN KEY (device_id)
                 REFERENCES Devices(id)
-                ON DELETE CASCADE,
-            CONSTRAINT chk_history_status CHECK (connection_status IN ('Connected', 'Disconnected'))
+                ON DELETE CASCADE
         )
     """)
     print("History table created")
@@ -123,3 +125,105 @@ def setup_schema(connection):
         create_history_table(cursor)
         create_blacklist_table(cursor)
 
+
+# INSERT LOGIC FOR TELEMETRY
+
+def ensure_user_exists(cursor, username="default_user"):
+    """Ensures the default user exists (since simulator doesn’t track real user accounts)."""
+    cursor.execute("SELECT id FROM Users WHERE username = :u", [username])
+    row = cursor.fetchone()
+
+    if row:
+        return row[0]
+
+    cursor.execute("""
+        INSERT INTO Users (username, password)
+        VALUES (:u, 'password')
+        RETURNING id INTO :id
+    """, {"u": username, "id": cursor.var(oracledb.NUMBER)})
+
+    return cursor.getimplicitresults()[0][0]
+
+
+def ensure_device_exists(cursor, device_name, mac, device_type):
+    """Return device_id, creating entry if needed."""
+    cursor.execute("SELECT id FROM Devices WHERE mac_address = :m", [mac])
+    row = cursor.fetchone()
+    if row:
+        return row[0]
+
+    user_id = ensure_user_exists(cursor)  # assign to default user
+
+    cursor.execute("""
+        INSERT INTO Devices (name, os, mac_address, user_id)
+        VALUES (:n, :o, :m, :u)
+        RETURNING id INTO :id
+    """, {
+        "n": device_name,
+        "o": device_type,
+        "m": mac,
+        "u": user_id,
+        "id": cursor.var(oracledb.NUMBER)
+    })
+
+    return cursor.getimplicitresults()[0][0]
+
+
+def insert_history(cursor, device_id, source_ip, status, timestamp):
+    connection_state = "Connected" if status == "active" else "Disconnected"
+
+    cursor.execute("""
+        INSERT INTO History (device_id, datetime, outgoing_ip, connection_status)
+        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :s)
+    """, {
+        "d": device_id,
+        "t": timestamp,
+        "ip": source_ip,
+        "s": connection_state
+    })
+
+
+def update_blacklist(cursor, device_id, status):
+    """Mark device as blocked if compromised or suspicious."""
+    blocked_flag = 1 if status != "active" else 0
+
+    cursor.execute("SELECT device_id FROM Blacklist WHERE device_id = :d", [device_id])
+    row = cursor.fetchone()
+
+    if row:
+        cursor.execute("UPDATE Blacklist SET blocked = :b WHERE device_id = :d",
+                       {"b": blocked_flag, "d": device_id})
+    else:
+        cursor.execute("INSERT INTO Blacklist (device_id, blocked) VALUES (:d, :b)",
+                       {"d": device_id, "b": blocked_flag})
+
+
+def insert_telemetry(connection, payload):
+    """
+    Main function to be called from the simulator.
+    Example payload keys:
+      device_id, source_ip, mac, device_type, current_load, status, timestamp
+    """
+    with connection.cursor() as cursor:
+        device_id = ensure_device_exists(
+            cursor,
+            device_name=payload["device_id"],
+            mac=payload["mac"],
+            device_type=payload["device_type"]
+        )
+
+        insert_history(
+            cursor,
+            device_id=device_id,
+            source_ip=payload["source_ip"],
+            status=payload["status"],
+            timestamp=payload["timestamp"]
+        )
+
+        update_blacklist(
+            cursor,
+            device_id=device_id,
+            status=payload["status"]
+        )
+
+    connection.commit()
