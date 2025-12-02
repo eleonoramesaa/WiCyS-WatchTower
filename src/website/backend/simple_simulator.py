@@ -40,6 +40,8 @@ def connect_mqtt():
 def simulate_traffic(client):
     print("Simulator running... Press Ctrl+C to stop.\n")
 
+    conn = None
+
     try:
 
         username, password, wallet_pw = get_credentials()
