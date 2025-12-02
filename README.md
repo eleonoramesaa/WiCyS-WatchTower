@@ -1,177 +1,354 @@
-# WiCyS-WatchTower
-Cybersecurity tool that keeps an eye on smart devices in your home or office, like printers, cameras, speakers, thermostats, and smart plugs. The tool learns what “normal” behavior looks like for each device and flags anything unusual.
+# WiCyS-WatchTower  
+
+A lightweight cybersecurity tool that simulates IoT devices, detects anomalies, stores telemetry in a database, and displays alerts in a dashboard.  
+WatchTower learns what “normal” behavior looks like and identifies suspicious or compromised activity — all without needing real IoT devices.
 
 ---
 
-## What Is WatchTower?
-WatchTower monitors Internet-of-Things (IoT) devices by observing their normal behavior patterns and detecting anything out of the ordinary.  
-This helps identify potential cyberattacks, unsafe network traffic, or unusual device activity inside a home or small office.
+## Project Overview
 
-The goal of WatchTower is to make it easy to understand when something suspicious is happening on your network without needing deep cybersecurity knowledge.
+WatchTower emulates a real IoT security monitoring environment:
 
----
+- simulated IoT devices generate live telemetry  
+- WatchTower Scanner detects anomalies in real time  
+- Oracle Autonomous Database (optional) stores device data  
+- a React dashboard displays alerts and device activity  
+- a one-command launcher starts the whole system automatically  
 
-## Tools Used
+This makes WatchTower perfect for demos, classroom projects, and cybersecurity research.
 
-### IoT Data Simulator
-Used to generate realistic fake IoT devices that behave like real ones.  
-This lets the team test WatchTower without needing physical hardware.
+Components
+-------------
 
-### Mosquitto (MQTT Broker)
-Serves as a central “message hub” where simulated devices send their data.  
-WatchTower listens to these messages to understand what devices are doing.
+### IoT Device Simulator (Python)
 
-### Nmap
-A network scanning tool that checks which devices and ports are visible on the network.  
-It helps WatchTower identify devices that appear online, including the simulated ones.
+**File:** `src/website/backend/simple_simulator.py`
 
-### WatchTower Backend (Python)
-Receives device messages, builds a baseline of normal behavior, and detects anything unusual or suspicious.
+Simulates realistic IoT devices, including:
 
-### WatchTower Dashboard
-Displays device information, activity logs, alerts, and any suspicious behavior in a clean user interface.
+-   device ID, IP, MAC, and type (camera, printer, thermostat)
 
-### Docker / Docker-Compose
-Allows all components (simulator, MQTT broker, backend, dashboard) to run together in containers.  
-This makes the system easy to start, stop, and share among team members.
+-   random "normal" load and status
 
----
+-   occasional anomalies like:
 
-## How to Run WatchTower
+    -   high CPU/load spikes
 
-### 1. Start the IoT Simulator
-Navigate into the simulator folder and run:
+    -   traffic from unexpected IP ranges
 
-```bash
-docker-compose up
-```
+    -   spam-like bursts
 
-This launches:
+For each telemetry event, it:
 
-- the IoT data simulator  
-- its user interface  
-- MongoDB  
-- Minio  
-- RabbitMQ  
+-   publishes a JSON message to MQTT topic `watchtower/telemetry`
 
-Open the simulator UI at:
+-   inserts the event into an Oracle database via `db_utils.insert_telemetry(...)`
 
-```
-http://localhost:8090
-```
+* * * * *
 
----
+### WatchTower Scanner (Python)
 
-### 2. Create Your Fake Devices
-Inside the simulator UI:
+**File:** `src/website/backend/nmap_scanner.py`
 
-- Create a session  
-- Add devices (camera, thermostat, plug, etc.)  
-- Choose how often they send data  
-- Set the target system to **MQTT**  
-- Use topics such as:
-  - `devices/cam-1`
-  - `devices/thermo-1`
-  - `devices/plug-1`
+Listens to the same MQTT topic and performs lightweight anomaly checks:
 
-The simulator will now begin generating normal and suspicious IoT traffic.
+-   **Suspicious MAC detection**
 
----
+    -   compares each MAC against a known safe list
 
-### 3. Start Mosquitto (MQTT Broker)
-If you are using Docker Compose, Mosquitto starts automatically.
+-   **Suspicious IP ranges**
 
-You can verify it's working by subscribing to device topics:
+    -   flags private or unusual ranges such as `10.x`, `172.20.x`, or `.250` endings
 
-```bash
-mosquitto_sub -h localhost -t "devices/#" -v
-```
+-   **Compromised status**
 
-If messages appear, MQTT is functioning correctly.
+    -   if the simulator marks the device as `"COMPROMISED"`, it raises an alert
 
----
+For each received packet, it prints a readable summary like:
 
-### 4. Run the WatchTower Backend
-The backend subscribes to MQTT, stores device data, analyzes behavior, and detects anomalies.
+`========================================
+📨 2025-11-24 19:40:28 | Camera-01
+IP: 192.168.1.105   MAC: 00:11:22:33:44:55   Load: 12   Status: active
+========================================`
 
-Run it with:
+If it detects something suspicious, it prints additional messages:
 
-```bash
-python app.py
-```
+-   `SUSPICIOUS MAC DETECTED!`
 
----
+-   `SUSPICIOUS IP RANGE DETECTED!`
 
-### 5. Run the WatchTower Dashboard
-Start your dashboard UI (React or Flask):
+-   `COMPROMISED ACTIVITY DETECTED!`
 
-```bash
-npm start
-```
+* * * * *
 
-or:
+### Oracle Autonomous Database (Optional)
 
-```bash
-python dashboard.py
-```
+Used for storing:
 
-The dashboard will show:
+-   telemetry events
 
-- connected devices  
-- real-time activity  
-- alerts  
-- suspicious events  
-- device history  
+-   device behavior history
 
----
+-   alerts and compromised events
 
-## Special Features
+**Wallet directory path (expected):**
 
-### Suspicious IoT Behavior Detection
-WatchTower identifies unusual events such as:
+`src/website/backend/Wallet_WatchTowerDev/`
 
-- sudden temperature spikes  
-- motion detected at unexpected times  
-- devices connecting to new IP addresses  
-- rapidly repeated messages  
-- behavior that does not match normal patterns  
+`db_utils.py` handles:
 
-### Simulated Devices Behave Like Real Devices
-Using Mosquitto and Nmap, simulated devices appear on the network with real traffic and open ports.
+-   secure connection using the wallet + `oracledb`
 
-This makes it possible to:
+-   helper functions for inserting telemetry from the simulator
 
-- discover them with Nmap  
-- analyze them like physical IoT devices  
+> If the wallet is not present or misconfigured, the simulator will print an Oracle error and exit, but the rest of the architecture (MQTT + Scanner + Frontend) can still be demonstrated.
 
-### Built-In Attack Scenarios
-We intentionally create strange or malicious behavior to test detection abilities, including:
+* * * * *
 
-- cameras turning on unexpectedly  
-- thermostats jumping to unsafe levels  
-- fake power-usage spikes  
-- extremely frequent data bursts  
+### React Frontend Dashboard
 
-These realistic scenarios help WatchTower detect real-world attacks.
+**Location:** `src/website/frontend/`
 
-### Fully Containerized Project
-All tools run in Docker, which makes the project:
+This is a Vite + React implementation of a cybersecurity dashboard UI based on a Figma design.\
+The current version focuses on:
 
-- portable  
-- easy to set up  
-- consistent across team members  
+-   overall layout and visual representation of a cyber monitoring dashboard
 
-### Easy to Extend
-You can add:
+-   space for device lists, alerts, and telemetry visualizations
 
-- new IoT devices  
-- new suspicious behavior patterns  
-- more dashboard views  
-- custom detection rules  
+You start it using `npm run dev` and access it at:
 
-with minimal configuration.
+`http://localhost:3000/`
 
----
+* * * * *
 
-## Project Summary
-WiCyS-WatchTower learns what normal IoT device behavior looks like and alerts you when something unusual, unsafe, or suspicious occurs. It uses an IoT simulator, MQTT, Nmap, and a custom detection dashboard to create a realistic, beginner-friendly cybersecurity monitoring system.
+### One-Command Launcher
+
+**File:** `orchestration/run_watchtower.py`
+
+This script is designed to:
+
+-   ensure Mosquitto (MQTT broker) is running
+
+-   open **three new terminal windows** (macOS) or processes (Windows) for:
+
+    -   IoT Simulator (`simple_simulator.py`)
+
+    -   WatchTower Scanner (`nmap_scanner.py`)
+
+    -   Frontend Dashboard (`npm run dev`)
+
+It centralizes startup so you can demo the full system using a single command.
+
+* * * * *
+
+Prerequisites
+----------------
+
+### 1. Mosquitto MQTT Broker
+
+#### macOS
+
+`brew install mosquitto
+brew services start mosquitto`
+
+Verify it is running:
+
+`mosquitto_sub -h localhost -t "#" -v`
+
+If it just waits and does **not** error, your broker is up.
+
+#### Windows
+
+1.  Download Mosquitto from:\
+    <https://mosquitto.org/download/>
+
+2.  Install with default settings.
+
+3.  Start the broker from a terminal:
+
+`mosquitto`
+
+Leave this window open while using WatchTower.
+
+* * * * *
+
+### 2. Python Dependencies
+
+From the **project root** (`WiCyS-WatchTower/`), install:
+
+`pip install paho-mqtt python-nmap oracledb`
+
+If you are using a virtual environment, activate it first.
+
+* * * * *
+
+### 3. Frontend Dependencies
+
+From the frontend folder:
+
+`cd src/website/frontend
+npm install
+npm install -D @vitejs/plugin-react-swc`
+
+This installs React, Vite, and the necessary SWC plugin.
+
+* * * * *
+
+### 4. Oracle Wallet (Optional but Recommended)
+
+Place the **Oracle wallet folder** here:
+
+`src/website/backend/Wallet_WatchTowerDev/`
+
+`db_utils.py` is configured to look in that relative path.\
+If it is missing, database insertion in `simple_simulator.py` will fail with `DPY-4026` (missing `tnsnames.ora`).
+
+* * * * *
+
+Run WatchTower With ONE Command
+----------------------------------
+
+From the **project root** (`WiCyS-WatchTower/`):
+
+### macOS
+
+`python3 orchestration/run_watchtower.py`
+
+### Windows
+
+`python orchestration/run_watchtower.py`
+
+This will:
+
+-   check and/or start Mosquitto
+
+-   launch the **IoT Simulator** (backend)
+
+-   launch the **WatchTower Scanner**
+
+-   launch the **Frontend Dashboard**
+
+You should then see the dashboard at:
+
+`http://localhost:3000/`
+
+> If some windows show errors (e.g., missing `nmap` or Oracle wallet), those services might fail, but the others can still run. You can use the error messages as part of a troubleshooting or "real-world complexity" explanation.
+
+* * * * *
+
+Manual Run Instructions (Optional)
+-------------------------------------
+
+If you want to run each component separately instead of using the orchestration script:
+
+* * * * *
+
+### 1\. Start MQTT Broker
+
+#### macOS
+
+`brew services start mosquitto`
+
+#### Windows
+
+`mosquitto`
+
+* * * * *
+
+### 2\. Run WatchTower Scanner
+
+From the **project root** or from `src/website/backend`:
+
+`cd src/website/backend
+python nmap_scanner.py`
+
+You should see output like:
+
+`Starting WatchTower Scanner...
+Connected. Listening for traffic...`
+
+* * * * *
+
+### 3\. Run IoT Device Simulator
+
+In another terminal:
+
+`cd src/website/backend
+python simple_simulator.py`
+
+You should see:
+
+-   "Connected to MQTT broker."
+
+-   "Simulator running... Press Ctrl+C to stop."
+
+-   `Sent: { ... }` lines for each generated packet
+
+If Oracle DB is configured correctly, telemetry is also inserted into the database.
+
+* * * * *
+
+### 4\. Start the Frontend Dashboard
+
+In another terminal:
+
+`cd src/website/frontend
+npm run dev`
+
+You should see something like:
+
+`VITE v6.x.x  ready in XXX ms
+➜  Local:   http://localhost:3000/`
+
+Open that URL in your browser to view the dashboard.
+
+* * * * *
+
+How WatchTower Detects Anomalies
+-----------------------------------
+
+WatchTower uses **simple, rule-based detection**, not machine learning.\
+This keeps the system:
+
+-   easy to understand
+
+-   predictable
+
+-   demo-friendly
+
+### Baseline Behavior
+
+"Normal" behavior in this version is defined by:
+
+-   expected IP ranges for legitimate IoT devices
+
+-   known MAC addresses for allowed devices
+
+-   typical load range (e.g., 5--30) from the simulator
+
+The simulator **mostly** emits normal behavior, but:
+
+-   occasionally emits packets from **rogue devices**
+
+-   occasionally marks legitimate devices as **COMPROMISED**
+
+-   sometimes sends traffic from **unexpected IP ranges**
+
+-   sometimes simulates **high load** or **spammy timing**
+
+### Detection Rules
+
+The scanner flags anomalies like:
+
+| Behavior | What It Means |
+| --- | --- |
+| Load spike (70--99) | Possible malware or heavy misuse |
+| IP in `10.x` or `172.20.x` | Suspicious internal or lateral movement |
+| IP ending in `.250` | Potential infrastructure or rogue node |
+| Unknown MAC address | Unauthorized / shadow device |
+| Status == `COMPROMISED` | Device marked as suspicious by logic |
+
+Because this is rule-based, you can explain every alert clearly in your report or presentation.
+
+* * * * *
