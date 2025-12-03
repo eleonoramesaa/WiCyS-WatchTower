@@ -89,7 +89,7 @@ def create_history_table(cursor):
             datetime            TIMESTAMP NOT NULL,
             outgoing_ip         VARCHAR2(255),
             connection_status   VARCHAR2(255),
-            threat              BOOL,
+            threat              NUMBER(1,0) DEFAULT 0 NOT NULL,
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
             CONSTRAINT fk_history_devices FOREIGN KEY (device_id)
                 REFERENCES Devices(id) ON DELETE CASCADE
@@ -327,3 +327,41 @@ def create_public_synonyms(connection, schema_name="DEV1"):
 
     connection.commit()
     print("All public synonyms created successfully.")
+    
+
+def grant_privileges_to_role(connection, role_name="dev_team_role"):
+    """
+    Grants SELECT, INSERT, UPDATE, DELETE privileges on all schema tables
+    to the specified role (default: dev_team_role).
+    Only works when connected as an admin user.
+    """
+
+    # Detect if connected user is admin
+    admin_users = {"ADMIN", "SYS", "SYSTEM"}
+    current_user = connection.username.upper()
+
+    if current_user not in admin_users:
+        print(f"Current user '{current_user}' is not an admin. Privilege grants skipped.")
+        return
+
+    tables = ["Users", "Devices", "History", "Blacklist"]
+
+    with connection.cursor() as cursor:
+        for table in tables:
+            try:
+                cursor.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO {role_name}")
+                print(f"Granted privileges on {table} to {role_name}.")
+
+            except oracledb.DatabaseError as e:
+                error, = e.args
+
+                # ORA-01917: role does not exist
+                # ORA-00942: table or view does not exist
+                if error.code in (1917, 942):
+                    print(f"Skipping {table}: {error.message}")
+                else:
+                    raise
+
+    connection.commit()
+    print(f"Privileges successfully granted to role '{role_name}'.")
+
