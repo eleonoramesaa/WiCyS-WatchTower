@@ -270,3 +270,59 @@ def insert_telemetry(connection, payload):
         )
 
     connection.commit()
+
+
+# -------------------------------------------------------------------
+#  MAINTENANCE UTILITIES
+# -------------------------------------------------------------------
+
+def wipe_tables(connection):
+    """
+    Deletes all rows from all tables in the correct dependency order.
+    Safe for tables with foreign keys.
+    """
+    with connection.cursor() as cursor:
+        # Child tables first
+        cursor.execute("DELETE FROM History")
+        cursor.execute("DELETE FROM Blacklist")
+
+        # Then parent tables
+        cursor.execute("DELETE FROM Devices")
+        cursor.execute("DELETE FROM Users")
+
+    connection.commit()
+    print("All table rows wiped successfully.")
+
+
+def create_public_synonyms(connection, schema_name="DEV1"):
+    """
+    Creates public synonyms so users can query tables without schema prefixes.
+    Example: SELECT * FROM devices;
+    """
+    tables = ["Users", "Devices", "History", "Blacklist"]
+
+    with connection.cursor() as cursor:
+        for table in tables:
+            synonym_name = table.lower()
+
+            # Drop synonym if exists, ignore "not found" error
+            cursor.execute(f"""
+                BEGIN
+                    EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM {synonym_name}';
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        IF SQLCODE != -1434 THEN
+                            RAISE;
+                        END IF;
+                END;
+            """)
+
+            cursor.execute(f"""
+                CREATE PUBLIC SYNONYM {synonym_name}
+                FOR {schema_name}.{table}
+            """)
+
+            print(f"Synonym created: {synonym_name} → {schema_name}.{table}")
+
+    connection.commit()
+    print("All public synonyms created successfully.")
