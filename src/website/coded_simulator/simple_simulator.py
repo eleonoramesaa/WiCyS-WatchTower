@@ -1,3 +1,4 @@
+
 import time
 import json
 import random
@@ -115,3 +116,4 @@ if __name__ == "__main__":
     mqtt_client = connect_mqtt()
     if mqtt_client:
         simulate_traffic(mqtt_client)
+
