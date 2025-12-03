@@ -89,6 +89,7 @@ def create_history_table(cursor):
             datetime            TIMESTAMP NOT NULL,
             outgoing_ip         VARCHAR2(255),
             connection_status   VARCHAR2(255),
+            threat              BOOL,
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
             CONSTRAINT fk_history_devices FOREIGN KEY (device_id)
                 REFERENCES Devices(id) ON DELETE CASCADE

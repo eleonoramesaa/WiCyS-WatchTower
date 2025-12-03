@@ -42,10 +42,10 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
               <div>
                 <p className="text-slate-400">Active Connections</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-white">1,247</span>
+                  <span className="text-white"></span>
                   <span className="text-green-400 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
-                    +0.3%
+                    
                   </span>
                 </div>
               </div>
@@ -55,33 +55,16 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <p className="text-slate-400">Threats Blocked</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-white">38</span>
-                  <span className="text-red-400 flex items-center gap-1">
-                    <TrendingDown className="w-3 h-3" />
-                    -0.3%
-                  </span>
-                </div>
-              </div>
-              <div className="p-2 bg-cyan-500/10 rounded-lg">
-                <Shield className="w-5 h-5 text-cyan-400" />
-              </div>
-            </CardHeader>
-          </Card>
 
           <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
                 <p className="text-slate-400">Active Alerts</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-white">3</span>
+                  <span className="text-white"></span>
                   <span className="text-green-400 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
-                    +2
+                    
                   </span>
                 </div>
               </div>
@@ -91,111 +74,8 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <p className="text-slate-400">System Health</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-white">98.7%</span>
-                  <span className="text-green-400 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    +0.3%
-                  </span>
-                </div>
-              </div>
-              <div className="p-2 bg-green-500/10 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-400" />
-              </div>
-            </CardHeader>
-          </Card>
         </div>
-
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Network Traffic */}
-          <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center justify-between">
-                <span>Network Traffic</span>
-                <div className="flex gap-4 text-slate-400">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                    Incoming 2.4 GB
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-cyan-500"></span>
-                    Outgoing 1.8 GB
-                  </span>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={networkTrafficData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1e293b', 
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      color: '#fff'
-                    }}
-                  />
-                  <Bar dataKey="incoming" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="outgoing" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Threat Detection */}
-          <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center justify-between">
-                <span>Threat Detection</span>
-                <div className="flex gap-4 text-slate-400">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                    High
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                    Medium
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    Low
-                  </span>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={threatDetectionData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1e293b', 
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      color: '#fff'
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {threatDetectionData.map((entry, index) => (
-                      <Cell key={index} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
+        
         {/* Security Alerts */}
         <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm">
           <CardHeader>
