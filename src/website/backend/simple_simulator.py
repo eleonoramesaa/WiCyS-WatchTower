@@ -2,8 +2,10 @@ import time
 import json
 import random
 import paho.mqtt.client as mqtt
+import oracledb
 from db_utils import insert_telemetry
 from db_utils import connect_to_db
+from db_utils import get_credentials, connect_to_db
 
 # --- CONFIGURATION ---
 BROKER_ADDRESS = "127.0.0.1"
@@ -38,7 +40,13 @@ def connect_mqtt():
 def simulate_traffic(client):
     print("Simulator running... Press Ctrl+C to stop.\n")
 
+    conn = None
+
     try:
+
+        username, password, wallet_pw = get_credentials()
+        conn = connect_to_db(username, password, wallet_pw)
+
         while True:
 
             # 90% chance legit device  
@@ -80,6 +88,8 @@ def simulate_traffic(client):
                 "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')
             }
 
+            insert_telemetry(conn,payload)
+
             client.publish(TOPIC, json.dumps(payload))
             print(f"Sent: {payload}")
 
@@ -87,6 +97,25 @@ def simulate_traffic(client):
 
     except KeyboardInterrupt:
         print("\nSimulator stopped.")
+    except oracledb.DatabaseError as e:
+            error, = e.args
+            print("Commit failed")
+            print("Code:", error.code)
+            print("Message:", error.message)
+            raise
+    except Exception as e:
+        print("\nUSER INSERT ERROR:")
+        print("Oracle error:", e)
+        raise
+    finally:
+        if conn:
+            try:
+                conn.close()
+                print("Connection closed.")
+            except Exception as ex:
+                print("Error closing connection:", ex)
+
+
 
 if __name__ == "__main__":
     mqtt_client = connect_mqtt()
