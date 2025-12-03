@@ -1,4 +1,4 @@
-from db_utils import get_credentials, connect_to_db
+from src.website.backend.coded_simulator.db_utils import get_credentials, connect_to_db
 
 def main():
     username, password, wallet_pw = get_credentials()

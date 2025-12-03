@@ -1,6 +1,6 @@
 # DO NOT RUN FILE AS "PRIMARY DEV" ONCE THE DATABASE IS IN USE, AS IT WILL DELETE ALL DATA!
 # THIS FILE IS ONLY FOR INITIAL SETUP/CREATION OF THE DATABASE SCHEMA.
-from db_utils import get_credentials, connect_to_db, setup_schema
+from src.website.backend.coded_simulator.db_utils import get_credentials, connect_to_db, setup_schema
 import oracledb
 
 # MAIN PROGRAM
