@@ -43,11 +43,13 @@ def simulate_traffic(client):
     conn = None
 
     try:
-
         username, password, wallet_pw = get_credentials()
         conn = connect_to_db(username, password, wallet_pw)
 
         while True:
+
+            # Default status for normal behavior
+            status = "active"
 
             # 90% chance legit device  
             if random.random() > 0.10:
@@ -56,10 +58,10 @@ def simulate_traffic(client):
                 # 10% of packets come from attacker devices
                 device = random.choice(SUSPICIOUS_DEVICES)
                 print(f"\nROGUE PACKET from {device['id']}! (Suspicious device)\n")
+                status = "SUSPICIOUS"
 
             current_load = random.randint(5, 30)
             source_ip = device["ip"]
-            status = "active"
 
             # --- RANDOM ANOMALIES FOR LEGIT DEVICES ONLY ---
             if device in DEVICES and random.random() < 0.10:
@@ -85,10 +87,11 @@ def simulate_traffic(client):
                 "device_type": device.get("type", "unknown"),
                 "current_load": current_load,
                 "status": status,
+                "threat": 1 if status in ("SUSPICIOUS", "COMPROMISED") else 0,
                 "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')
             }
 
-            insert_telemetry(conn,payload)
+            insert_telemetry(conn, payload)
 
             client.publish(TOPIC, json.dumps(payload))
             print(f"Sent: {payload}")

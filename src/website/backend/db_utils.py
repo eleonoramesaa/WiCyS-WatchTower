@@ -1,5 +1,7 @@
 import getpass
 import oracledb
+import os
+
 
 
 # -------------------------------------------------------------------
@@ -15,14 +17,27 @@ def get_credentials():
 
 def connect_to_db(username, password, wallet_password):
     try:
+        # Correct: go up 3 levels (backend → website → src → WiCyS-WatchTower)
+        PROJECT_ROOT = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "../../..")
+        )
+
+        wallet_path = os.path.join(PROJECT_ROOT, "Wallet_WatchTowerDev")
+
+        if not os.path.exists(wallet_path):
+            print("\nERROR: Oracle wallet directory not found:")
+            print(wallet_path)
+            raise FileNotFoundError(wallet_path)
+
         conn = oracledb.connect(
             user=username,
             password=password,
             dsn="watchtowerdev_low",
-            config_dir="./Wallet_WatchTowerDev",
-            wallet_location="./Wallet_WatchTowerDev",
+            config_dir=wallet_path,
+            wallet_location=wallet_path,
             wallet_password=wallet_password
         )
+
         print("Successfully connected to Oracle Database\n")
         return conn
 
@@ -32,6 +47,8 @@ def connect_to_db(username, password, wallet_password):
         print("Code:", error.code)
         print("Message:", error.message)
         exit(1)
+
+
 
 
 # -------------------------------------------------------------------
@@ -88,6 +105,7 @@ def create_history_table(cursor):
             device_id           NUMBER NOT NULL,
             datetime            TIMESTAMP NOT NULL,
             outgoing_ip         VARCHAR2(255),
+            packet_size         NUMBER,
             connection_status   VARCHAR2(255),
             threat              NUMBER(1,0) DEFAULT 0 NOT NULL,
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
@@ -197,18 +215,20 @@ def ensure_device_exists(cursor, device_name, mac, device_type):
 #  HISTORY AND BLACKLIST UPDATES
 # -------------------------------------------------------------------
 
-def insert_history(cursor, device_id, source_ip, status, timestamp):
+def insert_history(cursor, device_id, source_ip, current_load, status, threat, timestamp):
     """Writes a historical connection record."""
     connection_state = "Connected" if status == "active" else "Disconnected"
 
     cursor.execute("""
-        INSERT INTO History (device_id, datetime, outgoing_ip, connection_status)
-        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :s)
+        INSERT INTO History (device_id, datetime, outgoing_ip, packet_size, connection_status, threat)
+        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :cl, :s, :th)
     """, {
         "d": device_id,
         "t": timestamp,
         "ip": source_ip,
-        "s": connection_state
+        "cl": current_load,
+        "s": connection_state,
+        "th": threat
     })
 
 
@@ -259,7 +279,9 @@ def insert_telemetry(connection, payload):
             cursor,
             device_id,
             payload["source_ip"],
+            payload["current_load"],
             payload["status"],
+            payload["threat"],
             payload["timestamp"]
         )
 
@@ -295,73 +317,77 @@ def wipe_tables(connection):
     print("All table rows wiped successfully.")
 
 
-def create_public_synonyms(connection, schema_name="DEV1"):
-    """
-    Creates public synonyms so users can query tables without schema prefixes.
-    Example: SELECT * FROM devices;
-    """
-    tables = ["Users", "Devices", "History", "Blacklist"]
+# def create_public_synonyms(connection, schema_name="DEV1"):
+#     """
+#     Creates safe public synonyms to avoid synonym-loops.
+#     ONLY admin should run this function.
+#     """
+#     tables = {
+#         "Users": "wt_users",
+#         "Devices": "wt_devices",
+#         "History": "wt_history",
+#         "Blacklist": "wt_blacklist"
+#     }
 
-    with connection.cursor() as cursor:
-        for table in tables:
-            synonym_name = table.lower()
+#     with connection.cursor() as cursor:
+#         for table, synonym in tables.items():
 
-            # Drop synonym if exists, ignore "not found" error
-            cursor.execute(f"""
-                BEGIN
-                    EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM {synonym_name}';
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        IF SQLCODE != -1434 THEN
-                            RAISE;
-                        END IF;
-                END;
-            """)
+#             # Drop old synonym if exists
+#             cursor.execute(f"""
+#                 BEGIN
+#                     EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM {synonym}';
+#                 EXCEPTION
+#                     WHEN OTHERS THEN
+#                         IF SQLCODE NOT IN (-1434, -942) THEN
+#                             RAISE;
+#                         END IF;
+#                 END;
+#             """)
 
-            cursor.execute(f"""
-                CREATE PUBLIC SYNONYM {synonym_name}
-                FOR {schema_name}.{table}
-            """)
+#             # Create fresh synonym
+#             cursor.execute(f"""
+#                 CREATE PUBLIC SYNONYM {synonym}
+#                 FOR {schema_name}.{table}
+#             """)
 
-            print(f"Synonym created: {synonym_name} → {schema_name}.{table}")
+#             print(f"Synonym created: {synonym} → {schema_name}.{table}")
 
-    connection.commit()
-    print("All public synonyms created successfully.")
-    
+#     connection.commit()
+#     print("All public synonyms created successfully.")
 
-def grant_privileges_to_role(connection, role_name="dev_team_role"):
-    """
-    Grants SELECT, INSERT, UPDATE, DELETE privileges on all schema tables
-    to the specified role (default: dev_team_role).
-    Only works when connected as an admin user.
-    """
+# def grant_privileges_to_role(connection, role_name="dev_team_role"):
+#     """
+#     Grants SELECT, INSERT, UPDATE, DELETE privileges on all schema tables
+#     to the specified role (default: dev_team_role).
+#     Only works when connected as an admin user.
+#     """
 
-    # Detect if connected user is admin
-    admin_users = {"ADMIN", "SYS", "SYSTEM"}
-    current_user = connection.username.upper()
+#     # Detect if connected user is admin
+#     admin_users = {"ADMIN", "SYS", "SYSTEM"}
+#     current_user = connection.username.upper()
 
-    if current_user not in admin_users:
-        print(f"Current user '{current_user}' is not an admin. Privilege grants skipped.")
-        return
+#     if current_user not in admin_users:
+#         print(f"Current user '{current_user}' is not an admin. Privilege grants skipped.")
+#         return
 
-    tables = ["Users", "Devices", "History", "Blacklist"]
+#     tables = ["Users", "Devices", "History", "Blacklist"]
 
-    with connection.cursor() as cursor:
-        for table in tables:
-            try:
-                cursor.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO {role_name}")
-                print(f"Granted privileges on {table} to {role_name}.")
+#     with connection.cursor() as cursor:
+#         for table in tables:
+#             try:
+#                 cursor.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO {role_name}")
+#                 print(f"Granted privileges on {table} to {role_name}.")
 
-            except oracledb.DatabaseError as e:
-                error, = e.args
+#             except oracledb.DatabaseError as e:
+#                 error, = e.args
 
-                # ORA-01917: role does not exist
-                # ORA-00942: table or view does not exist
-                if error.code in (1917, 942):
-                    print(f"Skipping {table}: {error.message}")
-                else:
-                    raise
+#                 # ORA-01917: role does not exist
+#                 # ORA-00942: table or view does not exist
+#                 if error.code in (1917, 942):
+#                     print(f"Skipping {table}: {error.message}")
+#                 else:
+#                     raise
 
-    connection.commit()
-    print(f"Privileges successfully granted to role '{role_name}'.")
+#     connection.commit()
+#     print(f"Privileges successfully granted to role '{role_name}'.")
 
