@@ -19,25 +19,27 @@ def main():
     username = env.get("DB_USERNAME")
     password = env.get("DB_PASSWORD")
     wallet_pw = ""
-    print(username)
-    print(password)
-
+    print("got credentials")
+    
     dev_connection = connect_to_db(username, password, wallet_pw)
+    print("dev connection created")
     dev_cursor = dev_connection.cursor()
+    print("Dev Cursor Created")
 
     username, password, wallet_pw = get_credentials()
     connection = None
+    print("Received user credentials")
 
     try:
         connection = connect_to_db(username, password, wallet_pw)
         uname = username.lower()
 
         grant_sql = f"""
-            GRANT CREATE TABLE, 
-                INSERT ANY TABLE, 
-                DELETE ANY TABLE, 
-                SELECT ANY TABLE
-            TO {uname}
+            GRANT CREATE TABLE TO {username};
+            GRANT ALL ON USERS TO {username};
+            GRANT ALL ON history TO {username};
+            GRANT ALL ON blacklist TO {username};
+            GRANT ALL ON devices TO {username};
         """
 
     except oracledb.DatabaseError as e:
@@ -48,15 +50,18 @@ def main():
     try:
         dev_cursor.execute(grant_sql)
         dev_connection.commit()
+        
+        if dev_connection:
+            try:
+                dev_connection.close()
+                print("Dev Connection closed.")
+            except Exception as ex:
+                print("Error closing connection:", ex)
         print("Privileges granted successfully to dev_user.")
 
     except oracledb.DatabaseError as e:
         error_obj, = e.args
         print("Error granting privileges:", error_obj.message)
-
-
-    admin_users = {"admin", "sys", "system"}
-    dev_users = {"dev1", "antonio", "helen"}
 
         # --------------------------------------------------------------
         # CASE 1: Not admin and not dev1 → do nothing
@@ -71,7 +76,6 @@ def main():
         # STEP 1: Schema Creation (dev1)
         # --------------------------------------------------------------
         
-    if uname in dev_users:
         print("Setting up database schema...\n")
         setup_schema(connection)
 
@@ -126,13 +130,6 @@ def main():
         try:
             connection.close()
             print("Connection closed.")
-        except Exception as ex:
-            print("Error closing connection:", ex)
-
-    if dev_connection:
-        try:
-            connection.close()
-            print("Dev Connection closed.")
         except Exception as ex:
             print("Error closing connection:", ex)
 

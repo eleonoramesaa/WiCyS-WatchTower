@@ -8,6 +8,7 @@ import os
 # -------------------------------------------------------------------
 
 def get_credentials():
+    print("getting credentails")
     username = input("Enter Oracle username: ")
     password = getpass.getpass("Enter password: ")
     wallet_password = getpass.getpass("Enter wallet password (if applicable, else leave blank): ")
@@ -27,6 +28,8 @@ def connect_to_db(username, password, wallet_password):
             print("\nERROR: Oracle wallet directory not found:")
             print(wallet_path)
             raise FileNotFoundError(wallet_path)
+        
+        print(wallet_path)
 
         conn = oracledb.connect(
             user=username,
@@ -36,7 +39,7 @@ def connect_to_db(username, password, wallet_password):
             wallet_location=wallet_path,
             wallet_password=wallet_password
         )
-
+        
         print("Successfully connected to Oracle Database\n")
         return conn
 

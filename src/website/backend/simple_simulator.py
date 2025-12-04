@@ -45,6 +45,7 @@ def simulate_traffic(client):
     try:
         username, password, wallet_pw = get_credentials()
         conn = connect_to_db(username, password, wallet_pw)
+        print("Coonected to DB suucesfully")
 
         while True:
 
