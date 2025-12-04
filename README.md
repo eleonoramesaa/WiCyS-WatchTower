@@ -195,9 +195,11 @@ This installs React, Vite, and the necessary SWC plugin.
 
 * * * * *
 
-### 4. Oracle Wallet (Optional but Recommended)
+### 4. Oracle Wallet
 
-Place the **Oracle wallet folder** here:
+You will need to create your own Oracle wallet: https://docs.oracle.com/middleware/1213/wls/JDBCA/oraclewallet.htm#JDBCA596
+
+Place your **Oracle wallet folder** here:
 
 `src/website/backend/Wallet_WatchTowerDev/`
 
