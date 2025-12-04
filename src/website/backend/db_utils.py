@@ -1,5 +1,7 @@
 import getpass
 import oracledb
+import os
+
 
 
 # -------------------------------------------------------------------
@@ -15,14 +17,27 @@ def get_credentials():
 
 def connect_to_db(username, password, wallet_password):
     try:
+        # Correct: go up 3 levels (backend → website → src → WiCyS-WatchTower)
+        PROJECT_ROOT = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "../../..")
+        )
+
+        wallet_path = os.path.join(PROJECT_ROOT, "Wallet_WatchTowerDev")
+
+        if not os.path.exists(wallet_path):
+            print("\nERROR: Oracle wallet directory not found:")
+            print(wallet_path)
+            raise FileNotFoundError(wallet_path)
+
         conn = oracledb.connect(
             user=username,
             password=password,
             dsn="watchtowerdev_low",
-            config_dir="./Wallet_WatchTowerDev",
-            wallet_location="./Wallet_WatchTowerDev",
+            config_dir=wallet_path,
+            wallet_location=wallet_path,
             wallet_password=wallet_password
         )
+
         print("Successfully connected to Oracle Database\n")
         return conn
 
@@ -32,6 +47,8 @@ def connect_to_db(username, password, wallet_password):
         print("Code:", error.code)
         print("Message:", error.message)
         exit(1)
+
+
 
 
 # -------------------------------------------------------------------
@@ -89,7 +106,7 @@ def create_history_table(cursor):
             datetime            TIMESTAMP NOT NULL,
             outgoing_ip         VARCHAR2(255),
             connection_status   VARCHAR2(255),
-            threat              BOOL,
+            threat              NUMBER(1,0) DEFAULT 0 NOT NULL,
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
             CONSTRAINT fk_history_devices FOREIGN KEY (device_id)
                 REFERENCES Devices(id) ON DELETE CASCADE
@@ -297,33 +314,73 @@ def wipe_tables(connection):
 
 def create_public_synonyms(connection, schema_name="DEV1"):
     """
-    Creates public synonyms so users can query tables without schema prefixes.
-    Example: SELECT * FROM devices;
+    Creates safe public synonyms to avoid synonym-loops.
+    ONLY admin should run this function.
     """
+    tables = {
+        "Users": "wt_users",
+        "Devices": "wt_devices",
+        "History": "wt_history",
+        "Blacklist": "wt_blacklist"
+    }
+
+    with connection.cursor() as cursor:
+        for table, synonym in tables.items():
+
+            # Drop old synonym if exists
+            cursor.execute(f"""
+                BEGIN
+                    EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM {synonym}';
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        IF SQLCODE != -1434 THEN RAISE; END IF;
+                END;
+            """)
+
+            # Create fresh synonym
+            cursor.execute(f"""
+                CREATE PUBLIC SYNONYM {synonym}
+                FOR {schema_name}.{table}
+            """)
+
+            print(f"Synonym created: {synonym} → {schema_name}.{table}")
+
+    connection.commit()
+    print("All public synonyms created successfully.")
+
+def grant_privileges_to_role(connection, role_name="dev_team_role"):
+    """
+    Grants SELECT, INSERT, UPDATE, DELETE privileges on all schema tables
+    to the specified role (default: dev_team_role).
+    Only works when connected as an admin user.
+    """
+
+    # Detect if connected user is admin
+    admin_users = {"ADMIN", "SYS", "SYSTEM"}
+    current_user = connection.username.upper()
+
+    if current_user not in admin_users:
+        print(f"Current user '{current_user}' is not an admin. Privilege grants skipped.")
+        return
+
     tables = ["Users", "Devices", "History", "Blacklist"]
 
     with connection.cursor() as cursor:
         for table in tables:
-            synonym_name = table.lower()
+            try:
+                cursor.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO {role_name}")
+                print(f"Granted privileges on {table} to {role_name}.")
 
-            # Drop synonym if exists, ignore "not found" error
-            cursor.execute(f"""
-                BEGIN
-                    EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM {synonym_name}';
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        IF SQLCODE != -1434 THEN
-                            RAISE;
-                        END IF;
-                END;
-            """)
+            except oracledb.DatabaseError as e:
+                error, = e.args
 
-            cursor.execute(f"""
-                CREATE PUBLIC SYNONYM {synonym_name}
-                FOR {schema_name}.{table}
-            """)
-
-            print(f"Synonym created: {synonym_name} → {schema_name}.{table}")
+                # ORA-01917: role does not exist
+                # ORA-00942: table or view does not exist
+                if error.code in (1917, 942):
+                    print(f"Skipping {table}: {error.message}")
+                else:
+                    raise
 
     connection.commit()
-    print("All public synonyms created successfully.")
+    print(f"Privileges successfully granted to role '{role_name}'.")
+
