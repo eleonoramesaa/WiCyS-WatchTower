@@ -1,5 +1,6 @@
 import getpass
 import oracledb
+import os
 
 
 # -------------------------------------------------------------------
@@ -15,14 +16,27 @@ def get_credentials():
 
 def connect_to_db(username, password, wallet_password):
     try:
+        # Correct: go up 3 levels (backend → website → src → WiCyS-WatchTower)
+        PROJECT_ROOT = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "../../..")
+        )
+
+        wallet_path = os.path.join(PROJECT_ROOT, "Wallet_WatchTowerDev")
+
+        if not os.path.exists(wallet_path):
+            print("\nERROR: Oracle wallet directory not found:")
+            print(wallet_path)
+            raise FileNotFoundError(wallet_path)
+
         conn = oracledb.connect(
             user=username,
             password=password,
             dsn="watchtowerdev_low",
-            config_dir="./Wallet_WatchTowerDev",
-            wallet_location="./Wallet_WatchTowerDev",
+            config_dir=wallet_path,
+            wallet_location=wallet_path,
             wallet_password=wallet_password
         )
+
         print("Successfully connected to Oracle Database\n")
         return conn
 
@@ -32,6 +46,8 @@ def connect_to_db(username, password, wallet_password):
         print("Code:", error.code)
         print("Message:", error.message)
         exit(1)
+
+
 
 
 # -------------------------------------------------------------------
@@ -88,8 +104,9 @@ def create_history_table(cursor):
             device_id           NUMBER NOT NULL,
             datetime            TIMESTAMP NOT NULL,
             outgoing_ip         VARCHAR2(255),
+            packet_size         NUMBER,
             connection_status   VARCHAR2(255),
-            threat              BOOL,
+            threat              NUMBER(1,0) DEFAULT 0 NOT NULL,
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
             CONSTRAINT fk_history_devices FOREIGN KEY (device_id)
                 REFERENCES Devices(id) ON DELETE CASCADE
@@ -197,18 +214,20 @@ def ensure_device_exists(cursor, device_name, mac, device_type):
 #  HISTORY AND BLACKLIST UPDATES
 # -------------------------------------------------------------------
 
-def insert_history(cursor, device_id, source_ip, status, timestamp):
+def insert_history(cursor, device_id, source_ip, current_load, status, threat, timestamp):
     """Writes a historical connection record."""
     connection_state = "Connected" if status == "active" else "Disconnected"
 
     cursor.execute("""
-        INSERT INTO History (device_id, datetime, outgoing_ip, connection_status)
-        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :s)
+        INSERT INTO History (device_id, datetime, outgoing_ip, packet_size, connection_status, threat)
+        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :cl, :s, :th)
     """, {
         "d": device_id,
         "t": timestamp,
         "ip": source_ip,
-        "s": connection_state
+        "cl": current_load,
+        "s": connection_state,
+        "th": threat
     })
 
 
@@ -259,7 +278,9 @@ def insert_telemetry(connection, payload):
             cursor,
             device_id,
             payload["source_ip"],
+            payload["current_load"],
             payload["status"],
+            payload["threat"],
             payload["timestamp"]
         )
 
