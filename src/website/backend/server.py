@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 
 ## This is gettign arguments such as: /get_data?select=id,name&from=devices&where=id>5
-@app.route("/get_data")
+@app.route("/api/get_data")
 def get_data():
     
     username = env.get("DB_USERNAME")

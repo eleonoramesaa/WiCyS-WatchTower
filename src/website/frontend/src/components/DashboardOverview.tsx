@@ -143,7 +143,54 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
             </div>
           </CardContent>
         </Card>
+ </div>
+        {/* Suspicious Devices */}
+       <div className="xl:block">
+        <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white">Suspicious Devices</CardTitle>
+              <span className="text-slate-400"> devices</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {trustedDevices.map((device, index) => {
+                const DeviceIcon = device.icon;
+                return (
+                  <div 
+                    key={index} 
+                    onClick={() => onDeviceClick(device.name)}
+                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-800/50 transition-colors cursor-pointer"
+                  >
+                    <div className="p-2 bg-slate-800 rounded">
+                      <DeviceIcon className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-white truncate">{device.name}</p>
+                        <button className="text-slate-400 hover:text-white">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="text-slate-400 font-mono">{device.ip}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className={device.statusColor}>{device.status}</p>
+                        {device.badge && (
+                          <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                            {device.badge}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+        </div>
       </div>
-    </div>
+   
   );
 }

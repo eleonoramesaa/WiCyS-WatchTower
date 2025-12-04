@@ -811,7 +811,11 @@
   .grid-rows-\[auto_auto\] {
     grid-template-rows: auto auto;
   }
-
+@media (width >= 80rem) {
+    .xl\:block {
+      display: block;
+    }
+  }
   .flex-col {
     flex-direction: column;
   }
@@ -835,7 +839,9 @@
   .justify-between {
     justify-content: space-between;
   }
+  .dash-aside{
 
+  }
   .justify-center {
     justify-content: center;
   }
