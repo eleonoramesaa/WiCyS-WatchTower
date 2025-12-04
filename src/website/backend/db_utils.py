@@ -89,6 +89,7 @@ def create_devices_table(cursor):
             id                  NUMBER GENERATED ALWAYS AS IDENTITY,
             name                VARCHAR2(255) NOT NULL,
             os                  VARCHAR2(255),
+            type                VARCHAR2(255),
             mac_address         VARCHAR2(255) NOT NULL,
             user_id             NUMBER NOT NULL,
             suspicious_device   NUMBER(1,0) DEFAULT 0 NOT NULL,
@@ -109,8 +110,9 @@ def create_history_table(cursor):
             outgoing_ip         VARCHAR2(255),
             packet_size         NUMBER,
             connection_status   VARCHAR2(255),
-            device_type         VARCHAR2(255),
             threat              NUMBER(1,0) DEFAULT 0 NOT NULL,
+            payload_size        NUMBER,
+            device_type         VARCHAR2(255),
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
             CONSTRAINT fk_history_devices FOREIGN KEY (device_id)
                 REFERENCES Devices(id) ON DELETE CASCADE
@@ -139,6 +141,9 @@ def setup_schema(connection):
         create_devices_table(cursor)
         create_history_table(cursor)
         create_blacklist_table(cursor)
+
+    # ---- Grant table privileges to dev_team_role ----
+    grant_table_privileges(connection)
 
 
 # -------------------------------------------------------------------
@@ -174,7 +179,7 @@ def ensure_user_exists(cursor, username="default_user"):
     return int(new_id[0]) if new_id else None
 
 
-def ensure_device_exists(cursor, device_name, mac, os_value, suspicious_flag):
+def ensure_device_exists(cursor, device_name, mac, os_value, d_type, suspicious_flag):
     """
     Returns device_id, creating entry if needed.
     Also updates OS and suspicious_device for existing devices.
@@ -217,12 +222,13 @@ def ensure_device_exists(cursor, device_name, mac, os_value, suspicious_flag):
 
     try:
         cursor.execute("""
-            INSERT INTO Devices (name, os, mac_address, user_id, suspicious_device)
-            VALUES (:n, :o, :m, :u, :s)
+            INSERT INTO Devices (name, os, type, mac_address, user_id, suspicious_device)
+            VALUES (:n, :o, :t, :m, :u, :s)
             RETURNING id INTO :id
         """, {
             "n": device_name,
             "o": os_value,
+            "t": d_type,
             "m": mac,
             "u": user_id,
             "s": suspicious_flag,
@@ -246,7 +252,7 @@ def ensure_device_exists(cursor, device_name, mac, os_value, suspicious_flag):
 #  HISTORY AND BLACKLIST UPDATES
 # -------------------------------------------------------------------
 
-def insert_history(cursor, device_id, source_ip, device_type, current_load, status, threat, timestamp):
+def insert_history(cursor, device_id, source_ip, device_type, status, timestamp, threat=0, payload_size=None):
     """Writes a historical connection record."""
 
     # NEW LOGIC:
@@ -257,29 +263,42 @@ def insert_history(cursor, device_id, source_ip, device_type, current_load, stat
         connection_state = "Connected" if status == "active" else "Disconnected"
 
     cursor.execute("""
-        INSERT INTO History (device_id, datetime, outgoing_ip, device_type, packet_size, connection_status, threat)
-        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :dt, :cl, :s, :th)
+        INSERT INTO History (
+            device_id, datetime, outgoing_ip, device_type, connection_status, threat, payload_size
+        )
+        VALUES (
+            :d,
+            TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'),
+            :ip,
+            :dt, 
+            :s,
+            :thr,
+            :ps
+        )
     """, {
         "d": device_id,
         "t": timestamp,
         "ip": source_ip,
         "dt": device_type,
-        "cl": current_load,
         "s": connection_state,
-        "th": threat
+        "thr": threat,
+        "ps": payload_size,
     })
 
 
 
-def update_blacklist(cursor, device_id, status):
-    """Block or unblock a device. Suspicious devices are NOT blocked, just warned."""
+def update_blacklist(cursor, device_id, status, threat):
+    """
+    Block device if threat level exceeds threshold.
+    Default threshold = 5.
+    """
+    THREAT_THRESHOLD = 5
 
-    if status == "active":
-        blocked = 0
-    elif status == "suspicious":
-        blocked = 0   # NEW — suspicious ≠ blocked
+    # threat-based override
+    if threat >= THREAT_THRESHOLD:
+        blocked = 1
     else:
-        blocked = 1   # Only offline, failed, or invalid devices get blocked
+        blocked = 0 if status == "active" else 1
 
     cursor.execute("SELECT device_id FROM Blacklist WHERE device_id = :d", {"d": device_id})
     row = cursor.fetchone()
@@ -306,8 +325,8 @@ def insert_telemetry(connection, payload):
     """
     Inserts:
     - device existence check or creation
-    - history row
-    - blacklist status update
+    - history row (with threat + payload size)
+    - threat-based blacklist status update
     then commits.
     """
     with connection.cursor() as cursor:
@@ -321,23 +340,24 @@ def insert_telemetry(connection, payload):
             payload.get("suspicious_device", 0)
         )
 
-        # History
+        # Insert History
         insert_history(
             cursor,
             device_id,
             payload["source_ip"],
             payload["device_type"],
-            payload["current_load"],
             payload["status"],
+            payload["timestamp"],
             payload["threat"],
-            payload["timestamp"]
+            payload["payload_size"]
         )
 
-        # Blacklist
+        # Threat-based Blacklist update
         update_blacklist(
             cursor,
             device_id,
-            payload["status"]
+            payload["status"],
+            payload["threat"]
         )
 
     connection.commit()
@@ -365,10 +385,42 @@ def wipe_tables(connection):
     print("All table rows wiped successfully.")
 
 
+def drop_public_synonym_if_exists(cursor, synonym_name):
+    """
+    Drops a public synonym only if it exists (Option 2 pattern).
+    """
+    cursor.execute(f"""
+        DECLARE
+            v_count INTEGER;
+        BEGIN
+            SELECT COUNT(*)
+            INTO v_count
+            FROM ALL_SYNONYMS
+            WHERE OWNER = 'PUBLIC'
+              AND SYNONYM_NAME = UPPER('{synonym_name}');
+
+            IF v_count > 0 THEN
+                EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM {synonym_name}';
+            END IF;
+        END;
+    """)
+
+
+def create_public_synonym(cursor, synonym_name, schema_name, table_name):
+    """
+    Creates a public synonym pointing to schema.table.
+    """
+    cursor.execute(f"""
+        CREATE PUBLIC SYNONYM {synonym_name}
+        FOR {schema_name}.{table_name}
+    """)
+
+
 def create_public_synonyms(connection, schema_name="DEV1"):
     """
     Creates public synonyms so users can query tables without schema prefixes.
     Example: SELECT * FROM devices;
+    For each table, drop the synonym if it exists and create a fresh one.
     """
     tables = ["Users", "Devices", "History", "Blacklist"]
 
@@ -376,24 +428,35 @@ def create_public_synonyms(connection, schema_name="DEV1"):
         for table in tables:
             synonym_name = table.lower()
 
-            # Drop synonym if exists, ignore "not found" errors
-            cursor.execute(f"""
-                BEGIN
-                    EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM {synonym_name}';
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        IF SQLCODE NOT IN (-1432, -1434) THEN
-                            RAISE;
-                        END IF;
-                END;
-            """)
+            # Drop only if exists (Option 2)
+            drop_public_synonym_if_exists(cursor, synonym_name)
 
-            cursor.execute(f"""
-                CREATE PUBLIC SYNONYM {synonym_name}
-                FOR {schema_name}.{table}
-            """)
+            # Create synonym
+            create_public_synonym(cursor, synonym_name, schema_name, table)
 
             print(f"Synonym created: {synonym_name} -> {schema_name}.{table}")
 
     connection.commit()
     print("All public synonyms created successfully.")
+
+def grant_table_privileges(connection, schema_name="DEV1", role_name="DEV_TEAM_ROLE"):
+    """
+    Grants SELECT, INSERT, UPDATE, DELETE on each table in this schema
+    to the given role. Must be run as the schema owner (e.g., DEV1).
+    """
+    tables = ["Users", "Devices", "History", "Blacklist"]
+
+    with connection.cursor() as cursor:
+        for table in tables:
+            fq_table = f"{schema_name}.{table}"
+
+            cursor.execute(f"""
+                GRANT SELECT, INSERT, UPDATE, DELETE
+                ON {fq_table}
+                TO {role_name}
+            """)
+
+            print(f"Granted DML privileges on {fq_table} to role {role_name}.")
+
+    connection.commit()
+    print("\nAll privileges granted successfully.\n")
