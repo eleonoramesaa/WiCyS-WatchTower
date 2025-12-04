@@ -1158,7 +1158,13 @@
       background-color: color-mix(in oklab, var(--color-red-500) 20%, transparent);
     }
   }
-
+  .landing-h1{
+    color: white;
+    font-size: 300%;
+    padding-bottom: 0.5em;
+    padding-top: 0.5em;
+  }
+  
   .bg-secondary {
     background-color: var(--secondary);
   }
@@ -1171,6 +1177,7 @@
     background-color: color-mix(in srgb, oklch(.208 .042 265.755) 50%, transparent);
   }
 
+  
   @supports (color: color-mix(in lab, red, red)) {
     .bg-slate-900\/50 {
       background-color: color-mix(in oklab, var(--color-slate-900) 50%, transparent);
@@ -1421,7 +1428,7 @@
   }
 
   .text-foreground {
-    color: var(--foreground);
+    color: gray;
   }
 
   .text-green-400 {
@@ -1886,8 +1893,8 @@
 
   .data-\[state\=active\]\:bg-slate-800[data-state="active"] {
     background-color: var(--color-slate-800);
+    color: white;
   }
-
   .data-\[state\=closed\]\:animate-out[data-state="closed"] {
     animation: exit var(--tw-duration, .15s) var(--tw-ease, ease);
   }
@@ -1967,7 +1974,9 @@
 
   @media (width >= 80rem) {
     .xl\:block {
-      display: block;
+      width: 50rem;
+      display: column;
+      
     }
   }
 

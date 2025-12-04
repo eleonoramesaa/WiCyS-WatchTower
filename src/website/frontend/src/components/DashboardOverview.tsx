@@ -88,7 +88,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
                   <AlertTriangle className="w-4 h-4 text-red-400" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-white">Suspicious Login Attempt</p>
+                  <p className="text-white">Suspicious Activity</p>
                   <p className="text-slate-400">Multiple failed login attempts detected</p>
                   <p className="text-slate-500 mt-1">2 min ago</p>
                 </div>
@@ -96,11 +96,11 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
             </div>
           </CardContent>
         </Card>
-      </div>
+      
 
-      {/* Trusted Devices Sidebar */}
-      <div className="xl:block">
-        <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm sticky top-6">
+      {/* Trusted Devices */}
+      
+        <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Trusted Devices</CardTitle>
