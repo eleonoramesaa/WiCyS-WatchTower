@@ -1,36 +1,55 @@
+import { useState, useEffect } from 'react';
 import { Activity, Shield, AlertTriangle, TrendingUp, TrendingDown, Monitor, Smartphone, Tv, Tablet, MoreVertical, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-
-const networkTrafficData = [
-  { name: 'Mon', incoming: 2.1, outgoing: 1.5 },
-  { name: 'Tue', incoming: 2.4, outgoing: 1.8 },
-  { name: 'Wed', incoming: 2.2, outgoing: 1.6 },
-  { name: 'Thu', incoming: 2.5, outgoing: 1.9 },
-  { name: 'Fri', incoming: 2.3, outgoing: 1.7 },
-];
-
-const threatDetectionData = [
-  { name: 'High', value: 5, fill: '#ef4444' },
-  { name: 'Medium', value: 12, fill: '#f59e0b' },
-  { name: 'Low', value: 21, fill: '#10b981' },
-];
-
-const trustedDevices = [
-  { name: 'MacBook Pro', ip: '192.168.1.180', icon: Monitor, status: 'Active now', statusColor: 'text-green-400' },
-  { name: 'iPhone 14 Pro', ip: '192.168.1.142', icon: Smartphone, status: 'Active now', statusColor: 'text-green-400' },
-  { name: 'Desktop PC', ip: '192.168.1.101', icon: Monitor, status: '5 min ago', statusColor: 'text-slate-400' },
-  { name: 'iPad Air', ip: '192.168.1.139', icon: Tablet, status: '1 hour ago', statusColor: 'text-slate-400' },
-  { name: 'Smart TV', ip: '192.168.1.145', icon: Tv, status: 'Active now', statusColor: 'text-green-400', badge: 'Medium Risk' },
-  { name: 'Android Phone', ip: '192.168.1.132', icon: Smartphone, status: '1 day ago', statusColor: 'text-slate-400' },
-];
 
 interface DashboardOverviewProps {
   onDeviceClick: (deviceName: string) => void;
 }
 
 export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
+
+  const [trustedDevices, setTrustedDevices] = useState<any[]>([]);
+const [devicesLoading, setDevicesLoading] = useState(true);
+const [devicesError, setDevicesError] = useState<string | null>(null);
+
+useEffect(() => {
+  async function loadDevices() {
+    try {
+      const res = await fetch("http://localhost:5000/api/devices");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+
+      // Adapt backend data to your existing UI shape
+      setTrustedDevices(
+        data.map((d: any) => ({
+          name: d.name,
+          ip: d.ip ?? d.mac,
+          status:
+            d.connection_status === "Connected" ? "Active now" : "Offline",
+          statusColor:
+            d.connection_status === "Connected"
+              ? "text-green-400"
+              : "text-slate-400",
+          badge: d.blocked ? "Blocked" : undefined,
+          // simple default icon for now; you can map based on d.os later
+          icon: Monitor,
+        }))
+      );
+    } catch (err) {
+      console.error("Failed to load devices", err);
+      setDevicesError("Failed to load devices");
+    } finally {
+      setDevicesLoading(false);
+    }
+  }
+
+  loadDevices();
+}, []);
+
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
       {/* Main Content */}
