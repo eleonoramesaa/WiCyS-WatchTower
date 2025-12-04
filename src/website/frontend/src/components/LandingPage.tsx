@@ -34,24 +34,25 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
             </Button>
           </div>
         </header>
-
+      <br></br>
         {/* Hero Section */}
         <section className="container mx-auto px-4 py-20 text-center">
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20">
               <Shield className="w-4 h-4 text-blue-400" />
-              <span className="text-blue-300">Enterprise Security Solution</span>
+              <span className="text-blue-300">Security Solution</span>
             </div>
             
-            <h2 className="text-white">
-              Comprehensive Network Security Monitoring
-            </h2>
+            <h1 className="landing-h1">
+             <b>Comprehensive Network Security Monitoring</b>
+            </h1>
             
             <p className="text-slate-300 max-w-2xl mx-auto">
               WiCyS WatchTower provides real-time device monitoring, threat detection, and comprehensive 
               security analytics to protect your network infrastructure. Stay informed, stay secure.
+      
             </p>
-
+            <br></br>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Button 
                 onClick={onLoginClick}
@@ -69,7 +70,8 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
                 Learn More
               </Button>
             </div>
-
+<br></br>
+<br></br>
             <div className="pt-12 animate-bounce">
               <ChevronDown className="w-6 h-6 text-slate-400 mx-auto" />
             </div>
@@ -130,20 +132,6 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
 
             <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm hover:bg-slate-800/50 transition-colors">
               <CardHeader>
-                <div className="p-3 bg-purple-500/10 rounded-lg w-fit mb-4">
-                  <BarChart3 className="w-6 h-6 text-purple-400" />
-                </div>
-                <CardTitle className="text-white">Advanced Analytics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-400">
-                  Gain insights with powerful analytics and reporting tools for network performance and security.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm hover:bg-slate-800/50 transition-colors">
-              <CardHeader>
                 <div className="p-3 bg-red-500/10 rounded-lg w-fit mb-4">
                   <Lock className="w-6 h-6 text-red-400" />
                 </div>
@@ -156,25 +144,13 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
               </CardContent>
             </Card>
 
-            <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm hover:bg-slate-800/50 transition-colors">
-              <CardHeader>
-                <div className="p-3 bg-cyan-500/10 rounded-lg w-fit mb-4">
-                  <Shield className="w-6 h-6 text-cyan-400" />
-                </div>
-                <CardTitle className="text-white">Network Protection</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-400">
-                  Comprehensive network protection with automated threat detection and response capabilities.
-                </p>
-              </CardContent>
-            </Card>
+            
           </div>
         </section>
 
         {/* CTA Section */}
         <section className="container mx-auto px-4 py-20">
-          <Card className="border-slate-700 bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm max-w-4xl mx-auto">
+          <Card className="border-2 border-slate-700 bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm max-w-4xl mx-auto">
             <CardContent className="text-center py-12">
               <Shield className="w-16 h-16 text-blue-400 mx-auto mb-6" />
               <h3 className="text-white mb-4">
@@ -197,6 +173,7 @@ export function LandingPage({ onLoginClick }: LandingPageProps) {
         <footer className="border-t border-slate-700/50 py-8">
           <div className="container mx-auto px-4 text-center text-slate-400">
             <p>&copy; 2025 WiCyS WatchTower. All rights reserved.</p>
+          
           </div>
         </footer>
       </div>
