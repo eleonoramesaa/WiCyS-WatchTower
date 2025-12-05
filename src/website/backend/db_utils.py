@@ -1,5 +1,6 @@
 import getpass
 import oracledb
+import os
 
 
 # -------------------------------------------------------------------
@@ -7,6 +8,7 @@ import oracledb
 # -------------------------------------------------------------------
 
 def get_credentials():
+    print("Getting credentials")
     username = input("Enter Oracle username: ")
     password = getpass.getpass("Enter password: ")
     wallet_password = getpass.getpass("Enter wallet password (if applicable, else leave blank): ")
@@ -15,14 +17,29 @@ def get_credentials():
 
 def connect_to_db(username, password, wallet_password):
     try:
+        # Go up 3 levels (backend -> website -> src -> WiCyS-WatchTower)
+        PROJECT_ROOT = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "../../..")
+        )
+
+        wallet_path = os.path.join(PROJECT_ROOT, "Wallet_WatchTowerDev")
+
+        if not os.path.exists(wallet_path):
+            print("\nERROR: Oracle wallet directory not found:")
+            print(wallet_path)
+            raise FileNotFoundError(wallet_path)
+
+        print(wallet_path)
+
         conn = oracledb.connect(
             user=username,
             password=password,
             dsn="watchtowerdev_low",
-            config_dir="./Wallet_WatchTowerDev",
-            wallet_location="./Wallet_WatchTowerDev",
+            config_dir=wallet_path,
+            wallet_location=wallet_path,
             wallet_password=wallet_password
         )
+
         print("Successfully connected to Oracle Database\n")
         return conn
 
@@ -40,7 +57,8 @@ def connect_to_db(username, password, wallet_password):
 
 def drop_existing_tables(cursor):
     """Drops tables safely in correct dependency order."""
-    tables = ["Blacklist", "History", "Devices", "Users"]
+    # Child tables first, then parents
+    tables = ["History", "Blacklist", "Devices", "Users"]
     for table in tables:
         cursor.execute(f"""
             BEGIN
@@ -68,11 +86,12 @@ def create_users_table(cursor):
 def create_devices_table(cursor):
     cursor.execute("""
         CREATE TABLE Devices (
-            id              NUMBER GENERATED ALWAYS AS IDENTITY,
-            name            VARCHAR2(255) NOT NULL,
-            os              VARCHAR2(255),
-            mac_address     VARCHAR2(255) NOT NULL,
-            user_id         NUMBER NOT NULL,
+            id                  NUMBER GENERATED ALWAYS AS IDENTITY,
+            name                VARCHAR2(255) NOT NULL,
+            os                  VARCHAR2(255),
+            mac_address         VARCHAR2(255) NOT NULL,
+            user_id             NUMBER NOT NULL,
+            suspicious_device   NUMBER(1,0) DEFAULT 0 NOT NULL,
             CONSTRAINT pk_devices PRIMARY KEY (id),
             CONSTRAINT uq_devices_mac UNIQUE (mac_address),
             CONSTRAINT fk_devices_users FOREIGN KEY (user_id)
@@ -88,8 +107,10 @@ def create_history_table(cursor):
             device_id           NUMBER NOT NULL,
             datetime            TIMESTAMP NOT NULL,
             outgoing_ip         VARCHAR2(255),
+            packet_size         NUMBER,
             connection_status   VARCHAR2(255),
-            threat              BOOL,
+            device_type         VARCHAR2(255),
+            threat              NUMBER(1,0) DEFAULT 0 NOT NULL,
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
             CONSTRAINT fk_history_devices FOREIGN KEY (device_id)
                 REFERENCES Devices(id) ON DELETE CASCADE
@@ -140,7 +161,7 @@ def ensure_user_exists(cursor, username="default_user"):
             RETURNING id INTO :id
         """, {
             "u": username,
-            "p": "WatchTower123!",   # Oracle-safe dummy password
+            "p": "WatchTower123!",
             "id": id_var
         })
     except Exception as e:
@@ -153,38 +174,66 @@ def ensure_user_exists(cursor, username="default_user"):
     return int(new_id[0]) if new_id else None
 
 
-def ensure_device_exists(cursor, device_name, mac, device_type):
-    """Returns device_id, creating entry if needed."""
+def ensure_device_exists(cursor, device_name, mac, os_value, suspicious_flag):
+    """
+    Returns device_id, creating entry if needed.
+    Also updates OS and suspicious_device for existing devices.
+    """
+    # Normalize suspicious_flag to 0 or 1
+    suspicious_flag = 1 if suspicious_flag else 0
+
     cursor.execute("""
-        SELECT id FROM Devices
+        SELECT id, os, suspicious_device
+        FROM Devices
         WHERE LOWER(TRIM(mac_address)) = LOWER(TRIM(:m))
     """, {"m": mac})
     row = cursor.fetchone()
 
     if row:
-        return row[0]
+        device_id, existing_os, existing_suspicious = row
 
+        # If new telemetry says this device is suspicious, mark it
+        if suspicious_flag == 1 and existing_suspicious == 0:
+            cursor.execute("""
+                UPDATE Devices
+                SET suspicious_device = 1
+                WHERE id = :id
+            """, {"id": device_id})
+
+        # If we have a better or new OS value, update it
+        if os_value and (existing_os is None or existing_os != os_value):
+            cursor.execute("""
+                UPDATE Devices
+                SET os = :o
+                WHERE id = :id
+            """, {"o": os_value, "id": device_id})
+
+        return device_id
+
+    # New device case
     user_id = ensure_user_exists(cursor)
 
     id_var = cursor.var(oracledb.NUMBER)
 
     try:
         cursor.execute("""
-            INSERT INTO Devices (name, os, mac_address, user_id)
-            VALUES (:n, :o, :m, :u)
+            INSERT INTO Devices (name, os, mac_address, user_id, suspicious_device)
+            VALUES (:n, :o, :m, :u, :s)
             RETURNING id INTO :id
         """, {
             "n": device_name,
-            "o": device_type,
+            "o": os_value,
             "m": mac,
             "u": user_id,
+            "s": suspicious_flag,
             "id": id_var
         })
     except Exception as e:
         print("\nDEVICE INSERT ERROR:")
         print(" - device_name:", device_name)
         print(" - mac:", mac)
-        print(" - device_type:", device_type)
+        print(" - os_value:", os_value)
+        print(" - suspicious_flag:", suspicious_flag)
         print(" - user_id:", user_id)
         print(" - Oracle error:", e)
         raise
@@ -197,24 +246,40 @@ def ensure_device_exists(cursor, device_name, mac, device_type):
 #  HISTORY AND BLACKLIST UPDATES
 # -------------------------------------------------------------------
 
-def insert_history(cursor, device_id, source_ip, status, timestamp):
+def insert_history(cursor, device_id, source_ip, device_type, current_load, status, threat, timestamp):
     """Writes a historical connection record."""
-    connection_state = "Connected" if status == "active" else "Disconnected"
+
+    # NEW LOGIC:
+    # If 'threat' or suspicious flag indicates an issue → Warning
+    if threat == 1 or status == "suspicious":
+        connection_state = "Warning"
+    else:
+        connection_state = "Connected" if status == "active" else "Disconnected"
 
     cursor.execute("""
-        INSERT INTO History (device_id, datetime, outgoing_ip, connection_status)
-        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :s)
+        INSERT INTO History (device_id, datetime, outgoing_ip, device_type, packet_size, connection_status, threat)
+        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :dt, :cl, :s, :th)
     """, {
         "d": device_id,
         "t": timestamp,
         "ip": source_ip,
-        "s": connection_state
+        "dt": device_type,
+        "cl": current_load,
+        "s": connection_state,
+        "th": threat
     })
 
 
+
 def update_blacklist(cursor, device_id, status):
-    """Block or unblock a device based on suspicious activity."""
-    blocked = 1 if status != "active" else 0
+    """Block or unblock a device. Suspicious devices are NOT blocked, just warned."""
+
+    if status == "active":
+        blocked = 0
+    elif status == "suspicious":
+        blocked = 0   # NEW — suspicious ≠ blocked
+    else:
+        blocked = 1   # Only offline, failed, or invalid devices get blocked
 
     cursor.execute("SELECT device_id FROM Blacklist WHERE device_id = :d", {"d": device_id})
     row = cursor.fetchone()
@@ -232,6 +297,7 @@ def update_blacklist(cursor, device_id, status):
         """, {"d": device_id, "b": blocked})
 
 
+
 # -------------------------------------------------------------------
 #  MASTER TELEMETRY INSERT
 # -------------------------------------------------------------------
@@ -239,7 +305,7 @@ def update_blacklist(cursor, device_id, status):
 def insert_telemetry(connection, payload):
     """
     Inserts:
-    - device existence check
+    - device existence check or creation
     - history row
     - blacklist status update
     then commits.
@@ -251,7 +317,8 @@ def insert_telemetry(connection, payload):
             cursor,
             payload["device_id"],
             payload["mac"],
-            payload["device_type"]
+            payload.get("os"),
+            payload.get("suspicious_device", 0)
         )
 
         # History
@@ -259,7 +326,10 @@ def insert_telemetry(connection, payload):
             cursor,
             device_id,
             payload["source_ip"],
+            payload["device_type"],
+            payload["current_load"],
             payload["status"],
+            payload["threat"],
             payload["timestamp"]
         )
 
@@ -306,13 +376,13 @@ def create_public_synonyms(connection, schema_name="DEV1"):
         for table in tables:
             synonym_name = table.lower()
 
-            # Drop synonym if exists, ignore "not found" error
+            # Drop synonym if exists, ignore "not found" errors
             cursor.execute(f"""
                 BEGIN
                     EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM {synonym_name}';
                 EXCEPTION
                     WHEN OTHERS THEN
-                        IF SQLCODE != -1434 THEN
+                        IF SQLCODE NOT IN (-1432, -1434) THEN
                             RAISE;
                         END IF;
                 END;
@@ -323,7 +393,7 @@ def create_public_synonyms(connection, schema_name="DEV1"):
                 FOR {schema_name}.{table}
             """)
 
-            print(f"Synonym created: {synonym_name} → {schema_name}.{table}")
+            print(f"Synonym created: {synonym_name} -> {schema_name}.{table}")
 
     connection.commit()
     print("All public synonyms created successfully.")

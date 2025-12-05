@@ -40,11 +40,10 @@ export function DeviceFilters({
         </SelectTrigger>
         <SelectContent className="bg-slate-800 border-slate-700">
           <SelectItem value="all" className="text-white">All Types</SelectItem>
-          <SelectItem value="Desktop" className="text-white">Desktop</SelectItem>
-          <SelectItem value="Mobile" className="text-white">Mobile</SelectItem>
-          <SelectItem value="Server" className="text-white">Server</SelectItem>
-          <SelectItem value="Router" className="text-white">Router</SelectItem>
-          <SelectItem value="IoT" className="text-white">IoT Device</SelectItem>
+          <SelectItem value="Linux" className="text-white">Linux</SelectItem>
+          <SelectItem value="RTOS" className="text-white">RTOS</SelectItem>
+          <SelectItem value="Embedded Linux" className="text-white">Embedded Linux</SelectItem>
+          <SelectItem value="Unknown" className="text-white">Unknown</SelectItem>
         </SelectContent>
       </Select>
 
@@ -54,7 +53,7 @@ export function DeviceFilters({
         </SelectTrigger>
         <SelectContent className="bg-slate-800 border-slate-700">
           <SelectItem value="all" className="text-white">All Status</SelectItem>
-          <SelectItem value="Online" className="text-white">Online</SelectItem>
+          <SelectItem value="Connected" className="text-white">Online</SelectItem>
           <SelectItem value="Offline" className="text-white">Offline</SelectItem>
           <SelectItem value="Warning" className="text-white">Warning</SelectItem>
         </SelectContent>

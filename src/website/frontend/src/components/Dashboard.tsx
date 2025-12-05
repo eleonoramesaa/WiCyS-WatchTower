@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Shield, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -11,109 +11,6 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-// Mock device data
-const mockDevices: Device[] = [
-  {
-    id: '1',
-    name: 'Workstation-01',
-    type: 'Desktop',
-    ipAddress: '192.168.1.101',
-    macAddress: '00:1B:44:11:3A:B7',
-    status: 'Online',
-    lastSeen: '2 minutes ago',
-    location: 'Office - Floor 3',
-  },
-  {
-    id: '2',
-    name: 'iPhone-Dev',
-    type: 'Mobile',
-    ipAddress: '192.168.1.142',
-    macAddress: 'A4:5E:60:E8:9C:2D',
-    status: 'Online',
-    lastSeen: '5 minutes ago',
-    location: 'Mobile Network',
-  },
-  {
-    id: '3',
-    name: 'MainRouter',
-    type: 'Router',
-    ipAddress: '192.168.1.1',
-    macAddress: 'C8:3A:35:30:48:F0',
-    status: 'Warning',
-    lastSeen: '1 minute ago',
-    location: 'Server Room',
-  },
-  {
-    id: '4',
-    name: 'Database-Server',
-    type: 'Server',
-    ipAddress: '192.168.1.50',
-    macAddress: '00:50:56:C0:00:08',
-    status: 'Online',
-    lastSeen: 'Just now',
-    location: 'Data Center',
-  },
-  {
-    id: '5',
-    name: 'Legacy-PC',
-    type: 'Desktop',
-    ipAddress: '192.168.1.89',
-    macAddress: '00:0C:29:4F:1E:B3',
-    status: 'Offline',
-    lastSeen: '3 hours ago',
-    location: 'Office - Floor 2',
-  },
-  {
-    id: '6',
-    name: 'Smart-Thermostat',
-    type: 'IoT',
-    ipAddress: '192.168.1.205',
-    macAddress: 'B8:27:EB:A4:5C:8F',
-    status: 'Online',
-    lastSeen: '10 minutes ago',
-    location: 'Building HVAC',
-  },
-  {
-    id: '7',
-    name: 'Web-Server-01',
-    type: 'Server',
-    ipAddress: '192.168.1.51',
-    macAddress: '00:50:56:C0:00:09',
-    status: 'Online',
-    lastSeen: 'Just now',
-    location: 'Data Center',
-  },
-  {
-    id: '8',
-    name: 'Android-Tablet',
-    type: 'Mobile',
-    ipAddress: '192.168.1.178',
-    macAddress: 'F0:25:B7:3E:9A:1C',
-    status: 'Offline',
-    lastSeen: '1 day ago',
-    location: 'Conference Room',
-  },
-  {
-    id: '9',
-    name: 'Security-Camera-01',
-    type: 'IoT',
-    ipAddress: '192.168.1.210',
-    macAddress: 'E0:23:71:B5:4F:2A',
-    status: 'Warning',
-    lastSeen: '15 minutes ago',
-    location: 'Entrance',
-  },
-  {
-    id: '10',
-    name: 'MacBook-Pro',
-    type: 'Desktop',
-    ipAddress: '192.168.1.134',
-    macAddress: '3C:22:FB:2B:7E:8D',
-    status: 'Online',
-    lastSeen: '1 minute ago',
-    location: 'Office - Floor 3',
-  },
-];
 
 export function Dashboard({ onLogout }: DashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,20 +18,74 @@ export function Dashboard({ onLogout }: DashboardProps) {
   const [status, setStatus] = useState('all');
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(true);
+  const [devicesError, setDevicesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadDevices() {
+      try {
+        const res = await fetch(
+          "http://localhost:5000/api/get_data?sql_query=SELECT%20d.id%2C%20d.name%2C%20h.device_type%2C%20d.os%2C%20h.outgoing_ip%2C%20d.mac_address%2C%20h.connection_status%2C%20h.threat%2C%20h.datetime%20FROM%20DEVICES%20d%20INNER%20JOIN%20(%20SELECT%20device_id%2C%20outgoing_ip%2C%20connection_status%2C%20device_type%2C%20datetime%2C%20threat%2C%20ROW_NUMBER()%20OVER%20(PARTITION%20BY%20device_id%20ORDER%20BY%20datetime%20DESC)%20as%20rn%20FROM%20HISTORY%20)%20h%20ON%20d.id%20%3D%20h.device_id%20WHERE%20h.rn%20%3D%201"
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          console.error("Devices API returned unexpected:", data);
+          return;
+        }
+
+        const mapped: Device[] = data.map((row: any[]): Device => ({
+          // Devices table: id, name, os, mac_address, user_id
+          id: row[0],
+          name: row[1],
+          // Using mac_address as both IP and MAC placeholder for now
+          ipAddress: row[4] ?? "",
+          macAddress: row[5] ?? "",
+          // Placeholder values until you join with History/Users for richer info
+          os: row[3],
+          type: row[3],
+          status: row[6],
+          lastSeen: row[8],
+          threat: row[7],
+        }));
+
+        setDevices(mapped);
+        setDevicesError(null);
+      } catch (err) {
+        console.error("Failed to load devices", err);
+        setDevicesError("Failed to load devices");
+      } finally {
+        setLoadingDevices(false);
+      }
+    }
+
+    loadDevices();
+
+    const intervalId = setInterval(() => {
+        loadDevices(); 
+      }, 5000);
+
+      return () => clearInterval(intervalId);
+
+  }, []);
+
   const filteredDevices = useMemo(() => {
-    return mockDevices.filter((device) => {
+    return devices.filter((device) => {
       const matchesSearch = 
         device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         device.ipAddress.includes(searchTerm) ||
         device.macAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        device.location.toLowerCase().includes(searchTerm.toLowerCase());
+        device.os.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesType = deviceType === 'all' || device.type === deviceType;
+      const matchesType = deviceType === 'all' || device.os === deviceType;
       const matchesStatus = status === 'all' || device.status === status;
 
       return matchesSearch && matchesType && matchesStatus;
     });
-  }, [searchTerm, deviceType, status]);
+  }, [devices, searchTerm, deviceType, status]);
 
   const handleReset = () => {
     setSearchTerm('');
@@ -148,9 +99,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
   };
 
   const stats = {
-    total: mockDevices.length,
-    online: mockDevices.filter(d => d.status === 'Online').length,
-    warnings: mockDevices.filter(d => d.status === 'Warning').length,
+    total: devices.length
   };
 
   return (
@@ -180,7 +129,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 ">
           <TabsList className="bg-slate-900/50 border border-slate-700">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-800">
               Dashboard
