@@ -11,43 +11,49 @@ interface DashboardOverviewProps {
 export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
 
   const [trustedDevices, setTrustedDevices] = useState<any[]>([]);
-const [devicesLoading, setDevicesLoading] = useState(true);
-const [devicesError, setDevicesError] = useState<string | null>(null);
+  const [devicesLoading, setDevicesLoading] = useState(true);
+  const [devicesError, setDevicesError] = useState<string | null>(null);
 
-useEffect(() => {
-  async function loadDevices() {
-    try {
-      const res = await fetch("http://127.0.0.1:5000/api/get_data?select_str=*&from_str=devices");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  useEffect(() => {
+    async function loadDevices() {
+      try {
+        const res = await fetch("http://127.0.0.1:5000/api/get_data?select_str=*&from_str=devices");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const data = await res.json();
+        const data = await res.json();
 
-      // Adapt backend data to your existing UI shape
-      setTrustedDevices(
-        data.map((d: any) => ({
-          name: d[1],
-          ip: d[3] ?? d[3],
-          status:
-            d.connection_status === "Connected" ? "Active now" : "Offline",
-          statusColor:
-            d.connection_status === "Connected"
-              ? "text-green-400"
-              : "text-slate-400",
-          badge: d.blocked ? "Blocked" : undefined,
-          // simple default icon for now; you can map based on d.os later
-          icon: Monitor,
-        }))
-      );
-    } catch (err) {
-      console.error("Failed to load devices", err);
-      setDevicesError("Failed to load devices");
-    } finally {
-      setDevicesLoading(false);
+        // Adapt backend data to your existing UI shape
+        setTrustedDevices(
+          data.map((d: any) => ({
+            name: d[1],
+            ip: d[3] ?? d[3],
+            status:
+              d.connection_status === "Connected" ? "Active now" : "Offline",
+            statusColor:
+              d.connection_status === "Connected"
+                ? "text-green-400"
+                : "text-slate-400",
+            badge: d.blocked ? "Blocked" : undefined,
+            // simple default icon for now; you can map based on d.os later
+            icon: Monitor,
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to load devices", err);
+        setDevicesError("Failed to load devices");
+      } finally {
+        setDevicesLoading(false);
+      }
     }
-  }
 
-  loadDevices();
-}, []);
+    loadDevices();
+
+    const intervalId = setInterval(() => {
+        loadDevices(); 
+      }, 1000);
+
+      return () => clearInterval(intervalId);
+  }, []);
 
 
   return (
