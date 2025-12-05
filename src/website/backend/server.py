@@ -54,7 +54,7 @@ def get_data():
             "error": "Query failed",
             "code": error.code if hasattr(error, "code") else None,
             "message": error.message if hasattr(error, "message") else str(e),
-            "sql": sql
+            "sql": sql_query
         }), 500
 
 

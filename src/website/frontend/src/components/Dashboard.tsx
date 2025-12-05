@@ -26,7 +26,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
     async function loadDevices() {
       try {
         const res = await fetch(
-          "http://127.0.0.1:5000/api/get_data?select_str=*&from_str=history"
+          "http://127.0.0.1:5000/api/get_data?sql_query=SELECT%20*%20FROM%20history"
         );
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

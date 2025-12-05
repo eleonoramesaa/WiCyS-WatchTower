@@ -17,7 +17,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
   useEffect(() => {
     async function loadDevices() {
       try {
-        const res = await fetch("http://127.0.0.1:5000/api/get_data?sql_query=SELECT * FROM devices WHERE ");
+        const res = await fetch("http://127.0.0.1:5000/api/get_data?sql_query=SELECT%20*%20FROM%20devices");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
