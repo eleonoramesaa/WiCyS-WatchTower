@@ -89,6 +89,7 @@ def simulate_traffic(client):
                 "current_load": current_load,
                 "status": status,
                 "threat": 1 if status in ("SUSPICIOUS", "COMPROMISED") else 0,
+                "suspicious_device": 1 if status in ("SUSPICIOUS") else 0,
                 "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')
             }
 

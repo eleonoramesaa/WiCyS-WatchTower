@@ -92,6 +92,7 @@ def create_devices_table(cursor):
             os              VARCHAR2(255),
             mac_address     VARCHAR2(255) NOT NULL,
             user_id         NUMBER NOT NULL,
+            suspicious_device NUMBER(1,0) DEFAULT 0 NOT NULL,
             CONSTRAINT pk_devices PRIMARY KEY (id),
             CONSTRAINT uq_devices_mac UNIQUE (mac_address),
             CONSTRAINT fk_devices_users FOREIGN KEY (user_id)
