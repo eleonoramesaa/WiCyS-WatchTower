@@ -118,7 +118,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
                 </div>
                 <div className="flex-1">
                   <p className="text-white">Suspicious Activity</p>
-                  <p className="text-slate-400">Suspicious device detected</p>
+                  <p className="text-slate-400">Suspicious devices detected</p>
                   <p className="text-slate-500 mt-1"></p>
                 </div>
               </div>
