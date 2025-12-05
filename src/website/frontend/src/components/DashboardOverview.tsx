@@ -9,7 +9,7 @@ interface DashboardOverviewProps {
 }
 
 export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
-
+  
   const [trustedDevices, setTrustedDevices] = useState<any[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(true);
   const [devicesError, setDevicesError] = useState<string | null>(null);
@@ -67,7 +67,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
               <div>
                 <p className="text-slate-400">Active Connections</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-white"></span>
+                  <span className="text-white">{trustedDevices.length}</span>
                   <span className="text-green-400 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                     
@@ -86,7 +86,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
               <div>
                 <p className="text-slate-400">Active Alerts</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-white"></span>
+                  <span className="text-white">{}</span>
                   <span className="text-green-400 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                     
@@ -114,7 +114,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
                 </div>
                 <div className="flex-1">
                   <p className="text-white">Suspicious Activity</p>
-                  <p className="text-slate-400">Multiple failed login attempts detected</p>
+                  <p className="text-slate-400">Suspicious device detected</p>
                   <p className="text-slate-500 mt-1">2 min ago</p>
                 </div>
               </div>
