@@ -5,12 +5,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 export interface Device {
   id: string;
   name: string;
-  type: 'Desktop' | 'Mobile' | 'Server' | 'Router' | 'IoT';
+  type: string;
+  os: string;
   ipAddress: string;
-  status: 'Online' | 'Offline' | 'Warning';
+  status: 'Connected' | 'Disconnected';
   lastSeen: string;
-  location: string;
+  // location: string;
   macAddress: string;
+  threat: string;
 }
 
 interface DeviceTableProps {
@@ -26,15 +28,13 @@ const deviceIcons = {
 };
 
 const statusIcons = {
-  Online: CheckCircle,
-  Offline: XCircle,
-  Warning: AlertTriangle,
+  Connected: CheckCircle,
+  Disconnected: XCircle,
 };
 
 const statusColors = {
-  Online: 'bg-green-500/10 text-green-400 border-green-500/20',
-  Offline: 'bg-red-500/10 text-red-400 border-red-500/20',
-  Warning: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+ Connected: 'bg-green-500/10 text-green-400 border-green-500/20',
+ Disconnected: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
 export function DeviceTable({ devices }: DeviceTableProps) {
@@ -58,7 +58,6 @@ export function DeviceTable({ devices }: DeviceTableProps) {
             <TableHead className="text-slate-300">MAC Address</TableHead>
             <TableHead className="text-slate-300">Status</TableHead>
             <TableHead className="text-slate-300">Last Seen</TableHead>
-            <TableHead className="text-slate-300">Location</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -86,7 +85,6 @@ export function DeviceTable({ devices }: DeviceTableProps) {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-slate-300">{device.lastSeen}</TableCell>
-                <TableCell className="text-slate-300">{device.location}</TableCell>
               </TableRow>
             );
           })}

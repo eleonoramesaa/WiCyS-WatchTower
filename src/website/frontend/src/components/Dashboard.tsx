@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Shield, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -11,39 +11,6 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-// Mock device data
-const mockDevices: Device[] = [
-  {
-    id: '1',
-    name: 'Workstation-01',
-    type: 'Desktop',
-    ipAddress: '192.168.1.101',
-    macAddress: '00:1B:44:11:3A:B7',
-    status: 'Online',
-    lastSeen: '2 minutes ago',
-    location: 'Office - Floor 3',
-  },
-  {
-    id: '2',
-    name: 'iPhone-Dev',
-    type: 'Mobile',
-    ipAddress: '192.168.1.142',
-    macAddress: 'A4:5E:60:E8:9C:2D',
-    status: 'Online',
-    lastSeen: '5 minutes ago',
-    location: 'Mobile Network',
-  },
-  {
-    id: '3',
-    name: 'MainRouter',
-    type: 'Router',
-    ipAddress: '192.168.1.1',
-    macAddress: 'C8:3A:35:30:48:F0',
-    status: 'Warning',
-    lastSeen: '1 minute ago',
-    location: 'Server Room',
-  }
-];
 
 export function Dashboard({ onLogout }: DashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,20 +18,68 @@ export function Dashboard({ onLogout }: DashboardProps) {
   const [status, setStatus] = useState('all');
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(true);
+  const [devicesError, setDevicesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadDevices() {
+      try {
+        const res = await fetch(
+          "http://127.0.0.1:5000/api/get_data?select_str=*&from_str=history"
+        );
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          console.error("Devices API returned unexpected:", data);
+          return;
+        }
+
+        const mapped: Device[] = data.map((row: any[]): Device => ({
+          // Devices table: id, name, os, mac_address, user_id
+          id: row[0],
+          name: row[1],
+          // Using mac_address as both IP and MAC placeholder for now
+          ipAddress: row[2] ?? "",
+          macAddress: row[2] ?? "",
+          // Placeholder values until you join with History/Users for richer info
+          os: "Linux",
+          type: "Desktop",
+          status: row[4],
+          lastSeen: row[1],
+          threat: row[5],
+        }));
+
+        setDevices(mapped);
+        setDevicesError(null);
+      } catch (err) {
+        console.error("Failed to load devices", err);
+        setDevicesError("Failed to load devices");
+      } finally {
+        setLoadingDevices(false);
+      }
+    }
+
+    loadDevices();
+  }, []);
+
   const filteredDevices = useMemo(() => {
-    return mockDevices.filter((device) => {
+    return devices.filter((device) => {
       const matchesSearch = 
         device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         device.ipAddress.includes(searchTerm) ||
         device.macAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        device.location.toLowerCase().includes(searchTerm.toLowerCase());
+        device.os.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesType = deviceType === 'all' || device.type === deviceType;
+      const matchesType = deviceType === 'all' || device.os === deviceType;
       const matchesStatus = status === 'all' || device.status === status;
 
       return matchesSearch && matchesType && matchesStatus;
     });
-  }, [searchTerm, deviceType, status]);
+  }, [devices, searchTerm, deviceType, status]);
 
   const handleReset = () => {
     setSearchTerm('');
@@ -78,9 +93,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
   };
 
   const stats = {
-    total: mockDevices.length,
-    online: mockDevices.filter(d => d.status === 'Online').length,
-    warnings: mockDevices.filter(d => d.status === 'Warning').length,
+    total: devices.length
   };
 
   return (

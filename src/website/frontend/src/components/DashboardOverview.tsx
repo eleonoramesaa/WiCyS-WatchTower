@@ -9,11 +9,11 @@ interface DashboardOverviewProps {
 }
 
 export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
-
+  
   const [trustedDevices, setTrustedDevices] = useState<any[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(true);
   const [devicesError, setDevicesError] = useState<string | null>(null);
-
+  
   useEffect(() => {
     async function loadDevices() {
       try {
@@ -45,16 +45,19 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
         setDevicesLoading(false);
       }
     }
-
+    
     loadDevices();
-
+    
     const intervalId = setInterval(() => {
         loadDevices(); 
+       
       }, 1000);
 
       return () => clearInterval(intervalId);
   }, []);
 
+  const suspiciousDevices = trustedDevices.filter((device) => device.badge);
+  const alertCount = suspiciousDevices.length;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
@@ -67,7 +70,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
               <div>
                 <p className="text-slate-400">Active Connections</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-white"></span>
+                  <span className="text-white">{trustedDevices.length}</span>
                   <span className="text-green-400 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                     
@@ -86,7 +89,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
               <div>
                 <p className="text-slate-400">Active Alerts</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-white"></span>
+                  <span className="text-white">{alertCount}</span>
                   <span className="text-green-400 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                     
@@ -114,8 +117,8 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
                 </div>
                 <div className="flex-1">
                   <p className="text-white">Suspicious Activity</p>
-                  <p className="text-slate-400">Multiple failed login attempts detected</p>
-                  <p className="text-slate-500 mt-1">2 min ago</p>
+                  <p className="text-slate-400">Suspicious device detected</p>
+                  <p className="text-slate-500 mt-1"></p>
                 </div>
               </div>
             </div>
@@ -129,7 +132,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Trusted Devices</CardTitle>
-              <span className="text-slate-400">6 devices</span>
+              <span className="text-slate-400">{trustedDevices.length}devices</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -175,12 +178,12 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Suspicious Devices</CardTitle>
-              <span className="text-slate-400"> devices</span>
+              <span className="text-slate-400">{suspiciousDevices.length} devices</span>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {trustedDevices.map((device, index) => {
+              {suspiciousDevices.map((device, index) => {
                 const DeviceIcon = device.icon;
                 return (
                   <div 
