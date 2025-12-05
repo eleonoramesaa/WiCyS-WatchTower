@@ -13,7 +13,7 @@ if ENV_FILE:
 app = Flask(__name__)
 CORS(app)
 
-## This is gettign arguments such as: /get_data?select=id,name&from=devices&where=id>5
+## This is gettign arguments such as: /api/get_data?sql_query=
 @app.route("/api/get_data")
 def get_data():
     
@@ -34,27 +34,18 @@ def get_data():
         "message": error.message
         }), 500
 
-    select_str = request.args.get("select_str")
-    from_str = request.args.get("from_str")
-    where_str = request.args.get("where_str")
+    sql_query = request.args.get("sql_query")
     
-    if not select_str or not from_str:
+    if not sql_query:
         return jsonify({
             "error": "Missing required parameters",
-            "required": ["select_str", "from_str"]
+            "required": ["sql_query"]
         }), 400
 
-
-    sql = f"SELECT {select_str} FROM {from_str}"
-
-    if where_str:
-        sql += f" WHERE {where_str}"
-
-    
     # running sql statement
     try:
         with connection.cursor() as cursor:
-            cursor.execute(sql)
+            cursor.execute(sql_query)
             result = cursor.fetchall()
 
     except oracledb.DatabaseError as e:
