@@ -46,7 +46,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
           macAddress: row[5] ?? "",
           // Placeholder values until you join with History/Users for richer info
           os: row[3],
-          type: row[2],
+          type: row[3],
           status: row[6],
           lastSeen: row[8],
           threat: row[7],
@@ -66,7 +66,6 @@ export function Dashboard({ onLogout }: DashboardProps) {
 
     const intervalId = setInterval(() => {
         loadDevices(); 
-       
       }, 5000);
 
       return () => clearInterval(intervalId);
