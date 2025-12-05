@@ -27,6 +27,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
           data.map((d: any) => ({
             name: d[1],
             ip: d[3] ?? d[3],
+            isSuspicious: d[5],
             status:
               d.connection_status === "Connected" ? "Active now" : "Offline",
             statusColor:
@@ -56,9 +57,9 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
       return () => clearInterval(intervalId);
   }, []);
 
-  const suspiciousDevices = trustedDevices.filter((device) => device.badge);
+  const suspiciousDevices = trustedDevices.filter(device => device.isSuspicious);
   const alertCount = suspiciousDevices.length;
-
+  const nonSuspiciousDevices = trustedDevices.filter(device => !device.isSuspicious);
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
       {/* Main Content */}
@@ -132,12 +133,12 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Trusted Devices</CardTitle>
-              <span className="text-slate-400">{trustedDevices.length}devices</span>
+              <span className="text-slate-400">{nonSuspiciousDevices.length} devices</span>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {trustedDevices.map((device, index) => {
+                {nonSuspiciousDevices.map((device, index) => {
                 const DeviceIcon = device.icon;
                 return (
                   <div 
@@ -173,7 +174,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
         </Card>
  </div>
         {/* Suspicious Devices */}
-       <div className="xl:block">
+       <div className="w-full xl:w-72">
         <Card className="border-slate-700 bg-slate-900/50 backdrop-blur-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -182,7 +183,7 @@ export function DashboardOverview({ onDeviceClick }: DashboardOverviewProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
               {suspiciousDevices.map((device, index) => {
                 const DeviceIcon = device.icon;
                 return (
