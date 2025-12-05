@@ -2,7 +2,6 @@ import getpass
 import oracledb
 import os
 
-
 # -------------------------------------------------------------------
 #  CREDENTIAL COLLECTION
 # -------------------------------------------------------------------
@@ -17,7 +16,7 @@ def get_credentials():
 
 def connect_to_db(username, password, wallet_password):
     try:
-        # Go up 3 levels (backend -> website -> src -> WiCyS-WatchTower)
+        # Correct: go up 3 levels (backend → website → src → WiCyS-WatchTower)
         PROJECT_ROOT = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "../../..")
         )
@@ -28,9 +27,7 @@ def connect_to_db(username, password, wallet_password):
             print("\nERROR: Oracle wallet directory not found:")
             print(wallet_path)
             raise FileNotFoundError(wallet_path)
-
-        print(wallet_path)
-
+        
         conn = oracledb.connect(
             user=username,
             password=password,
