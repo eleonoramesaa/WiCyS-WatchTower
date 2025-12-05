@@ -246,26 +246,40 @@ def ensure_device_exists(cursor, device_name, mac, os_value, suspicious_flag):
 #  HISTORY AND BLACKLIST UPDATES
 # -------------------------------------------------------------------
 
-def insert_history(cursor, device_id, source_ip, current_load, status, threat, timestamp):
+def insert_history(cursor, device_id, source_ip, device_type, current_load, status, threat, timestamp):
     """Writes a historical connection record."""
-    connection_state = "Connected" if status == "active" else "Disconnected"
+
+    # NEW LOGIC:
+    # If 'threat' or suspicious flag indicates an issue → Warning
+    if threat == 1 or status == "suspicious":
+        connection_state = "Warning"
+    else:
+        connection_state = "Connected" if status == "active" else "Disconnected"
 
     cursor.execute("""
-        INSERT INTO History (device_id, datetime, outgoing_ip, packet_size, connection_status, threat)
-        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :cl, :s, :th)
+        INSERT INTO History (device_id, datetime, outgoing_ip, device_type, packet_size, connection_status, threat)
+        VALUES (:d, TO_TIMESTAMP(:t, 'YYYY-MM-DD HH24:MI:SS'), :ip, :dt, :cl, :s, :th)
     """, {
         "d": device_id,
         "t": timestamp,
         "ip": source_ip,
+        "dt": device_type,
         "cl": current_load,
         "s": connection_state,
         "th": threat
     })
 
 
+
 def update_blacklist(cursor, device_id, status):
-    """Block or unblock a device based on suspicious activity."""
-    blocked = 1 if status != "active" else 0
+    """Block or unblock a device. Suspicious devices are NOT blocked, just warned."""
+
+    if status == "active":
+        blocked = 0
+    elif status == "suspicious":
+        blocked = 0   # NEW — suspicious ≠ blocked
+    else:
+        blocked = 1   # Only offline, failed, or invalid devices get blocked
 
     cursor.execute("SELECT device_id FROM Blacklist WHERE device_id = :d", {"d": device_id})
     row = cursor.fetchone()
@@ -281,6 +295,7 @@ def update_blacklist(cursor, device_id, status):
             INSERT INTO Blacklist (device_id, blocked)
             VALUES (:d, :b)
         """, {"d": device_id, "b": blocked})
+
 
 
 # -------------------------------------------------------------------
@@ -311,6 +326,7 @@ def insert_telemetry(connection, payload):
             cursor,
             device_id,
             payload["source_ip"],
+            payload["device_type"],
             payload["current_load"],
             payload["status"],
             payload["threat"],
