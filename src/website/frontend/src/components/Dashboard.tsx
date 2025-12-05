@@ -26,9 +26,8 @@ export function Dashboard({ onLogout }: DashboardProps) {
     async function loadDevices() {
       try {
         const res = await fetch(
-          "http://127.0.0.1:5000/api/get_data?sql_query=SELECT%20*%20FROM%20history"
+          "http://localhost:5000/api/get_data?sql_query=SELECT%20d.id%2C%20d.name%2C%20h.device_type%2C%20d.os%2C%20h.outgoing_ip%2C%20d.mac_address%2C%20h.connection_status%2C%20h.threat%2C%20h.datetime%20FROM%20DEVICES%20d%20INNER%20JOIN%20(%20SELECT%20device_id%2C%20outgoing_ip%2C%20connection_status%2C%20device_type%2C%20datetime%2C%20threat%2C%20ROW_NUMBER()%20OVER%20(PARTITION%20BY%20device_id%20ORDER%20BY%20datetime%20DESC)%20as%20rn%20FROM%20HISTORY%20)%20h%20ON%20d.id%20%3D%20h.device_id%20WHERE%20h.rn%20%3D%201"
         );
-
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
@@ -43,14 +42,14 @@ export function Dashboard({ onLogout }: DashboardProps) {
           id: row[0],
           name: row[1],
           // Using mac_address as both IP and MAC placeholder for now
-          ipAddress: row[2] ?? "",
-          macAddress: row[2] ?? "",
+          ipAddress: row[4] ?? "",
+          macAddress: row[5] ?? "",
           // Placeholder values until you join with History/Users for richer info
-          os: "Linux",
-          type: "Desktop",
-          status: row[4],
-          lastSeen: row[1],
-          threat: row[5],
+          os: row[3],
+          type: row[2],
+          status: row[6],
+          lastSeen: row[8],
+          threat: row[7],
         }));
 
         setDevices(mapped);
@@ -64,6 +63,14 @@ export function Dashboard({ onLogout }: DashboardProps) {
     }
 
     loadDevices();
+
+    const intervalId = setInterval(() => {
+        loadDevices(); 
+       
+      }, 5000);
+
+      return () => clearInterval(intervalId);
+
   }, []);
 
   const filteredDevices = useMemo(() => {

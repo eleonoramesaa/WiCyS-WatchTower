@@ -109,6 +109,7 @@ def create_history_table(cursor):
             outgoing_ip         VARCHAR2(255),
             packet_size         NUMBER,
             connection_status   VARCHAR2(255),
+            device_type         VARCHAR2(255),
             threat              NUMBER(1,0) DEFAULT 0 NOT NULL,
             CONSTRAINT pk_history PRIMARY KEY (device_id, datetime),
             CONSTRAINT fk_history_devices FOREIGN KEY (device_id)

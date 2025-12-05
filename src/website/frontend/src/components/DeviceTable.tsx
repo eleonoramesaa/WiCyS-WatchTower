@@ -1,4 +1,4 @@
-import { Monitor, Smartphone, Server, Router, Wifi, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Monitor, Smartphone, Server, Router, Wifi, CheckCircle, XCircle, AlertTriangle, MessageCircleWarning } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
@@ -8,7 +8,7 @@ export interface Device {
   type: string;
   os: string;
   ipAddress: string;
-  status: 'Connected' | 'Disconnected';
+  status: 'Connected' | 'Disconnected' | 'Warning';
   lastSeen: string;
   // location: string;
   macAddress: string;
@@ -25,11 +25,13 @@ const deviceIcons = {
   Server: Server,
   Router: Router,
   IoT: Wifi,
+  default: Wifi,
 };
 
 const statusIcons = {
   Connected: CheckCircle,
   Disconnected: XCircle,
+  default: MessageCircleWarning,
 };
 
 const statusColors = {
@@ -62,8 +64,8 @@ export function DeviceTable({ devices }: DeviceTableProps) {
         </TableHeader>
         <TableBody>
           {devices.map((device) => {
-            const DeviceIcon = deviceIcons[device.type];
-            const StatusIcon = statusIcons[device.status];
+            const DeviceIcon = deviceIcons[device.type] ?? Wifi;
+            const StatusIcon = statusIcons[device.status] ?? MessageCircleWarning;
             
             return (
               <TableRow key={device.id} className="border-slate-700 hover:bg-slate-800/50">
