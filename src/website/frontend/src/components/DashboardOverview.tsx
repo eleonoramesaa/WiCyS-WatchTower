@@ -17,7 +17,7 @@ const [devicesError, setDevicesError] = useState<string | null>(null);
 useEffect(() => {
   async function loadDevices() {
     try {
-      const res = await fetch("http://localhost:5000/api/devices");
+      const res = await fetch("http://127.0.0.1:5000/api/get_data?select_str=*&from_str=devices");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
@@ -25,8 +25,8 @@ useEffect(() => {
       // Adapt backend data to your existing UI shape
       setTrustedDevices(
         data.map((d: any) => ({
-          name: d.name,
-          ip: d.ip ?? d.mac,
+          name: d[1],
+          ip: d[3] ?? d[3],
           status:
             d.connection_status === "Connected" ? "Active now" : "Offline",
           statusColor:

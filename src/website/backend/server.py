@@ -4,13 +4,14 @@ from db_utils import connect_to_db
 
 from dotenv import find_dotenv, load_dotenv
 from flask import Flask, jsonify, request, make_response
+from flask_cors import CORS
 
 ENV_FILE = find_dotenv()
 if ENV_FILE:
     load_dotenv(ENV_FILE)
     
 app = Flask(__name__)
-
+CORS(app)
 
 ## This is gettign arguments such as: /get_data?select=id,name&from=devices&where=id>5
 @app.route("/api/get_data")
@@ -105,4 +106,4 @@ def home():
     return make_response(html)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=env.get("PORT", 3000))
+    app.run(host="0.0.0.0", port=env.get("PORT", 5000))
