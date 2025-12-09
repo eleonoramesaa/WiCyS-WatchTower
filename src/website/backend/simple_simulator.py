@@ -93,7 +93,7 @@ def calculate_threat(device, status, payload_size):
     threat = 0
 
     # Suspicious device baseline
-    if device in SUSPICIOUS_DEVICES:
+    if device["id"] in {d["id"] for d in SUSPICIOUS_DEVICES}:
         threat += 3
 
     # Status-based
@@ -134,6 +134,8 @@ def simulate_traffic(client):
         print("Connected to DB successfully")
 
         while True:
+            status = "ACTIVE"
+            sus_flag = 0
 
             # 90% legit, 10% suspicious
             if random.random() > 0.10:
@@ -141,6 +143,8 @@ def simulate_traffic(client):
             else:
                 device = random.choice(SUSPICIOUS_DEVICES)
                 print(f"\nROGUE PACKET from {device['id']}! (Suspicious device)\n")
+                status = "SUSPICIOUS"
+                sus_flag = 1
 
             # ----------------------------
             # PAYLOAD SIZE = our load metric
@@ -152,7 +156,7 @@ def simulate_traffic(client):
             # --------------------------------------------
             # RANDOM LEGIT ANOMALIES (compromise simulation)
             # --------------------------------------------
-            if device in DEVICES and random.random() < 0.10:
+            if random.random() < 0.10:
                 anomaly_type = random.choice(["load", "ip", "spam"])
                 print(f"\nANOMALY on {device['id']} — {anomaly_type}\n")
 
@@ -186,7 +190,7 @@ def simulate_traffic(client):
                 "payload_size": payload_size,
                 "threat": threat,
                 "status": status,
-                "suspicious_device": 1 if status == "SUSPICIOUS" else 0,
+                "suspicious_device": sus_flag,
                 "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')
             }
 
