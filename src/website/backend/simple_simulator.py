@@ -113,7 +113,7 @@ def calculate_threat(device, status, payload_size):
     # small random jitter for variety
     threat += random.randint(0, 1)
 
-    # cap to 0..9
+    # cap to 0...9
     if threat < 0:
         threat = 0
     threat = min(threat, 9)
@@ -189,7 +189,7 @@ def simulate_traffic(client):
                 "os": device.get("os", "unknown"),
                 "payload_size": payload_size,
                 "threat": threat,
-                "status": status,
+                "status": status.lower(),
                 "suspicious_device": sus_flag,
                 "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')
             }

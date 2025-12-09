@@ -254,7 +254,7 @@ def insert_history(cursor, device_id, source_ip, device_type, status, timestamp,
 
     # NEW LOGIC:
     # If 'threat' or suspicious flag indicates an issue → Warning
-    if threat > 0 or status.lower() in ["suspicious", "compromised"]:
+    if threat > 0 or status in ["suspicious", "compromised"]:
         connection_state = "Warning"
     else:
         connection_state = "Connected" if status == "active" else "Disconnected"
@@ -295,7 +295,7 @@ def update_blacklist(cursor, device_id, status, threat):
     if threat >= THREAT_THRESHOLD:
         blocked = 1
     else:
-        blocked = 0 if status.lower() == "active" else 1
+        blocked = 0 if status == "active" else 1
 
     cursor.execute("SELECT device_id FROM Blacklist WHERE device_id = :d", {"d": device_id})
     row = cursor.fetchone()
