@@ -34,6 +34,13 @@ def main():
             print("Message:", error.message)
             raise
 
+    except oracledb.DatabaseError as e:
+        error, = e.args
+        print("Error opening connection:")
+        print("Code:", error.code)
+        print("Message:", error.message)
+        raise
+
     finally:
         if connection:
             try:
