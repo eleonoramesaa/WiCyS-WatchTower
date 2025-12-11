@@ -1,12 +1,10 @@
+# simple_simulator.py
 import time
 import json
 import random
 import paho.mqtt.client as mqtt
 import oracledb
-
-from db_utils import insert_telemetry
-from db_utils import get_credentials, connect_to_db
-
+from db_utils import insert_telemetry, connect_to_db, get_credentials
 
 # --- CONFIGURATION ---
 BROKER_ADDRESS = "127.0.0.1"
@@ -14,7 +12,7 @@ BROKER_PORT = 1883
 TOPIC = "watchtower/telemetry"
 
 
-# Legit devices you want to monitor
+# Legit devices 
 DEVICES = [
     {
         "id": "Camera-01",
@@ -39,7 +37,7 @@ DEVICES = [
     }
 ]
 
-# Suspicious devices (attackers, rogue devices, unknown hosts)
+# Suspicious devices
 SUSPICIOUS_DEVICES = [
     {
         "id": "Unknown-Device",
@@ -62,6 +60,9 @@ SUSPICIOUS_DEVICES = [
 ]
 
 
+# --------------------------
+# MQTT CONNECTION
+# --------------------------
 def connect_mqtt():
     client = mqtt.Client(
         mqtt.CallbackAPIVersion.VERSION2,
@@ -77,6 +78,51 @@ def connect_mqtt():
         return None
 
 
+# --------------------------
+# THREAT SCORING FUNCTION
+# --------------------------
+def calculate_threat(device, status, payload_size):
+    """
+    Returns an integer threat score (0-9).
+    Heuristics used:
+      - suspicious device: +3
+      - compromised status: +3
+      - payload_size spikes add 0..3
+      - small random jitter (0..1)
+    """
+    threat = 0
+
+    # Suspicious device baseline
+    if device["id"] in {d["id"] for d in SUSPICIOUS_DEVICES}:
+        threat += 3
+
+    # Status-based
+    if status == "COMPROMISED":
+        threat += 3
+
+    # Payload-size contribution (bytes)
+    # tune thresholds to your environment
+    if payload_size is not None:
+        if payload_size > 10000:
+            threat += 3
+        elif payload_size > 5000:
+            threat += 2
+        elif payload_size > 2000:
+            threat += 1
+
+    # small random jitter for variety
+    threat += random.randint(0, 1)
+
+    # cap to 0...9
+    if threat < 0:
+        threat = 0
+    threat = min(threat, 9)
+    return threat
+
+
+# --------------------------
+# SIMULATION LOOP
+# --------------------------
 def simulate_traffic(client):
     print("Simulator running... Press Ctrl+C to stop.\n")
 
@@ -88,29 +134,34 @@ def simulate_traffic(client):
         print("Connected to DB successfully")
 
         while True:
+            status = "ACTIVE"
+            sus_flag = 0
 
-            # Default status
-            status = "active"
-
-            # 90 percent chance normal device
+            # 90% legit, 10% suspicious
             if random.random() > 0.10:
                 device = random.choice(DEVICES)
             else:
-                # 10 percent attacker packets
                 device = random.choice(SUSPICIOUS_DEVICES)
                 print(f"\nROGUE PACKET from {device['id']}! (Suspicious device)\n")
                 status = "SUSPICIOUS"
+                sus_flag = 1
 
-            current_load = random.randint(5, 30)
+            # ----------------------------
+            # PAYLOAD SIZE = our load metric
+            # ----------------------------
+            payload_size = random.randint(150, 1500)   # bytes
+
             source_ip = device["ip"]
 
-            # Random anomalies for legit devices only
-            if device in DEVICES and random.random() < 0.10:
+            # --------------------------------------------
+            # RANDOM LEGIT ANOMALIES (compromise simulation)
+            # --------------------------------------------
+            if random.random() < 0.10:
                 anomaly_type = random.choice(["load", "ip", "spam"])
                 print(f"\nANOMALY on {device['id']} — {anomaly_type}\n")
 
                 if anomaly_type == "load":
-                    current_load = random.randint(70, 99)
+                    payload_size = random.randint(5000, 20000)  # malicious spike
                     status = "COMPROMISED"
 
                 elif anomaly_type == "ip":
@@ -119,23 +170,42 @@ def simulate_traffic(client):
 
                 elif anomaly_type == "spam":
                     status = "COMPROMISED"
+                    # mini-delay to simulate burst
                     time.sleep(0.05)
 
+            # ----------------------------
+            # CALCULATE THREAT
+            # ----------------------------
+            threat = calculate_threat(device, status, payload_size)
+
+            # ----------------------------
+            # BUILD TELEMETRY PAYLOAD
+            # ----------------------------
             payload = {
                 "device_id": device["id"],
                 "source_ip": source_ip,
                 "mac": device.get("mac"),
                 "device_type": device.get("type", "unknown"),
                 "os": device.get("os", "unknown"),
-                "current_load": current_load,
-                "status": status,
-                "threat": 1 if status in ("SUSPICIOUS","COMPROMISED") else 0,
-                "suspicious_device": 1 if status == "SUSPICIOUS" else 0,
+                "payload_size": payload_size,
+                "threat": threat,
+                "status": status.lower(),
+                "suspicious_device": sus_flag,
                 "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')
             }
 
-            insert_telemetry(conn, payload)
+            # Store in Oracle
+            # ----------------------------
+            # CHECK USER PERMISSIONS
+            # ----------------------------
+            user_lower = username.lower()
+            if user_lower in ("dev1", "admin"):
+                print(f"WARNING: User '{username}' is not allowed to insert telemetry. Skipping DB insert.")
+            else:
+                insert_telemetry(conn, payload)
+                print(f"Inserted telemetry for {device['id']} into DB.")
 
+            # Publish over MQTT
             client.publish(TOPIC, json.dumps(payload))
             print(f"Sent: {payload}")
 
@@ -146,7 +216,7 @@ def simulate_traffic(client):
 
     except oracledb.DatabaseError as e:
         error, = e.args
-        print("Commit failed")
+        print("Oracle insert failed")
         print("Code:", error.code)
         print("Message:", error.message)
         raise
@@ -169,3 +239,4 @@ if __name__ == "__main__":
     mqtt_client = connect_mqtt()
     if mqtt_client:
         simulate_traffic(mqtt_client)
+        mqtt_client.disconnect()
